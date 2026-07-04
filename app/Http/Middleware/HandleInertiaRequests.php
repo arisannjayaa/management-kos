@@ -40,14 +40,29 @@ class HandleInertiaRequests extends Middleware
             'name' => config('app.name'),
             'auth' => [
                 'user' => $request->user(),
-                'roles' => $request->user() ? $request->user()->getRoleNames() : [],
-                'permissions' => $request->user() ? $request->user()->getAllPermissions()->pluck('name') : [],
+
+                'roles' => $request->user()
+                    ? $request->user()->getRoleNames()
+                    : [],
+
+                'permissions' => $request->user()
+                    ? $request->user()->getAllPermissions()
+                        ->pluck('name')
+                    : [],
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'flash' => [
-                'success' => fn () => $request->session()->pull('success'),
-                'error'   => fn () => $request->session()->pull('error'),
+                'success' => fn () => $request->session()->has('success') ? [
+                    'message' => $request->session()->pull('success'),
+                    'id'      => uniqid(), // <-- ID unik tiap kali session sukses dibuat
+                ] : null,
+
+                'error' => fn () => $request->session()->has('error') ? [
+                    'message' => $request->session()->pull('error'),
+                    'id'      => uniqid(), // <-- ID unik tiap kali session error dibuat
+                ] : null,
             ],
+            'assetUrl' => asset(''),
         ];
     }
 }

@@ -1,3 +1,5 @@
+// resources/js/components/delete-confirm-dialog.tsx
+
 import React from 'react';
 import {
     AlertDialog,
@@ -16,16 +18,29 @@ type Props = {
     title?: string;
     description: React.ReactNode;
     onConfirm: () => void;
-    onCancel?: () => void; // Tambahan prop opsional jika butuh fungsi saat batal
+    onCancel?: () => void;
+    /**
+     * Label tombol konfirmasi.
+     * @default 'Ya, Hapus Data'
+     */
+    confirmLabel?: string;
+    /**
+     * Class tambahan untuk tombol konfirmasi.
+     * Gunakan ini untuk mengubah warna tombol, misal untuk restore (hijau).
+     * @default 'bg-red-600 text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800'
+     */
+    confirmClassName?: string;
 };
 
 export default function DeleteConfirmDialog({
     open,
     onOpenChange,
-    title = 'Apakah Anda benar-benar yakin?', // Default value
+    title = 'Apakah Anda benar-benar yakin?',
     description,
     onConfirm,
     onCancel,
+    confirmLabel = 'Ya, Hapus Data',
+    confirmClassName = 'bg-red-600 text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800',
 }: Props) {
     return (
         <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -37,16 +52,14 @@ export default function DeleteConfirmDialog({
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                    {/* Tombol Batal menjalankan onCancel (jika ada) */}
                     <AlertDialogCancel onClick={onCancel}>
                         Batal
                     </AlertDialogCancel>
-
                     <AlertDialogAction
                         onClick={onConfirm}
-                        className="bg-red-600 text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800"
+                        className={confirmClassName}
                     >
-                        Ya, Hapus Data
+                        {confirmLabel}
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>

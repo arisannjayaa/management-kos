@@ -11,4 +11,17 @@ export type NavItem = {
     href: NonNullable<InertiaLinkProps['href']>;
     icon?: LucideIcon | null;
     isActive?: boolean;
+    permission?: string;
+    activePatterns?: string[];
+};
+
+/*
+|--------------------------------------------------------------------------
+| Sidebar Group
+|--------------------------------------------------------------------------
+*/
+
+export type NavGroup = {
+    title: string;
+    items: NavItem[];
 };

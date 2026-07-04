@@ -2,8 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -13,18 +11,25 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // 1. SEEDER WAJIB: Akan selalu dijalankan di semua environment (termasuk Production)
         $this->call([
-            RolePermissionSeeder::class, // Pondasi Role
-            EmployeeSeeder::class,       // Data Pegawai Fake
+            RolePermissionSeeder::class, // Jika Anda pakai spatie/permission
+            AdminSeeder::class, // Contoh: Seeder untuk akun Admin
+//            CategorySeeder::class,
+//            TagSeeder::class,
+//            AccountSeeder::class,
+//            TransactionSeeder::class,
+//            DebtSeeder::class,
         ]);
 
-        $admin = User::factory()->create([
-            'name' => 'Ari',
-            'email' => 'admin@mail.com',
-            'password' => bcrypt('password1'),
-        ]);
+        // 2. SEEDER DUMMY: Hanya dijalankan jika BUKAN di environment 'production'
+        if (! app()->environment('production')) {
+            $this->call([
+            ]);
 
-
-        $admin->assignRole('administrator');
+            $this->command->info('Environment Local/Staging terdeteksi. Data contoh (dummy) berhasil ditambahkan.');
+        } else {
+            $this->command->warn('Environment Production terdeteksi! Seeder data contoh (dummy) dilewati.');
+        }
     }
 }

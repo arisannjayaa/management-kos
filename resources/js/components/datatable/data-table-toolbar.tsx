@@ -1,6 +1,7 @@
 // resources/js/components/datatable/data-table-toolbar.tsx
 
 import { SlidersHorizontalIcon } from 'lucide-react';
+import type { ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -19,49 +20,29 @@ import {
 import { Separator } from '@/components/ui/separator';
 
 import type { FilterFieldConfig } from '@/types/datatable';
-import { DatatableSearch } from './datatable-search';
 import { DataTablePerPage } from './datatable-per-page';
+import { DatatableSearch } from './datatable-search';
 
 type Props = {
-    /** Value search (controlled dari luar agar debounce di luar) */
     searchValue: string;
     onSearch: (value: string) => void;
     searchPlaceholder?: string;
 
-    /** Jumlah filter aktif — ditampilkan di badge tombol Filter */
     activeFilterCount?: number;
-
-    /** Daftar field filter yang muncul di dalam Popover */
     filterFields?: FilterFieldConfig[];
-
-    /** Callback reset semua filter */
     onClearFilters?: () => void;
 
-    /** Per-page */
     perPage: number;
     onPerPageChange: (value: number) => void;
     perPageOptions?: number[];
 
-    /** Slot kanan — misal tombol "Tambah" */
-    children?: React.ReactNode;
+    /**
+     * Slot kanan toolbar — taruh <DataTableTrashToggle> atau tombol lain di sini.
+     * Dirender setelah per-page selector.
+     */
+    rightSlot?: ReactNode;
 };
 
-/**
- * DataTableToolbar — Toolbar standar: Search | Filter | PerPage | [slot kanan].
- *
- * Pemakaian:
- * ```tsx
- * <DataTableToolbar
- *   searchValue={searchValue}
- *   onSearch={handleSearch}
- *   activeFilterCount={activeFilterCount}
- *   filterFields={filterFields}
- *   onClearFilters={clearAllFilters}
- *   perPage={filters.per_page ?? 10}
- *   onPerPageChange={(v) => applyFilter({ per_page: v })}
- * />
- * ```
- */
 export function DataTableToolbar({
     searchValue,
     onSearch,
@@ -72,7 +53,7 @@ export function DataTableToolbar({
     perPage,
     onPerPageChange,
     perPageOptions,
-    children,
+    rightSlot,
 }: Props) {
     return (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -82,7 +63,6 @@ export function DataTableToolbar({
                 placeholder={searchPlaceholder}
             />
 
-            {/* Filter Popover — hanya render jika ada filterFields */}
             {filterFields.length > 0 && (
                 <Popover>
                     <PopoverTrigger asChild>
@@ -163,7 +143,8 @@ export function DataTableToolbar({
                 options={perPageOptions}
             />
 
-            {children}
+            {/* Slot kanan: DataTableTrashToggle, tombol ekspor, dll. */}
+            {rightSlot}
         </div>
     );
 }

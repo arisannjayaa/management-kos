@@ -1,36 +1,47 @@
-import { Head } from '@inertiajs/react';
-import { PlaceholderPattern } from '@/components/ui/placeholder-pattern';
-import { dashboard } from '@/routes';
+// resources/js/pages/dashboard/index.tsx
 
-export default function Dashboard() {
+import { Head } from '@inertiajs/react';
+import {
+    Wallet,
+    ArrowDownLeft,
+    ArrowUpRight,
+    AlertTriangle,
+    Calendar,
+    TrendingUp,
+    Activity,
+    FolderKanban,
+    Package,
+    Sparkles,
+    Target,
+} from 'lucide-react';
+import { useState } from 'react';
+import {
+    AreaChart,
+    Area,
+    XAxis,
+    CartesianGrid,
+    Tooltip,
+    ResponsiveContainer,
+} from 'recharts';
+
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
+
+// ─── Main Component ────────────────────────────────────────────────────────────
+
+export default function DashboardIndex({ dashboard, stats }: Props) {
+    const [activeTab, setActiveTab] = useState('overview');
+    const historyData = stats?.history_charts?.data ?? [];
+    const latestSnapshot = historyData[historyData.length - 1] ?? null;
+
     return (
         <>
             <Head title="Dashboard" />
-            <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-                <div className="grid auto-rows-min gap-4 md:grid-cols-3">
-                    <div className="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                        <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
-                    </div>
-                    <div className="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                        <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
-                    </div>
-                    <div className="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                        <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
-                    </div>
-                </div>
-                <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border border-sidebar-border/70 md:min-h-min dark:border-sidebar-border">
-                    <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
-                </div>
+
+            {/* 🌟 AMBIENT BACKGROUND GLOW 🌟 */}
+            <div className="pointer-events-none fixed inset-0 z-0 flex justify-center">
+                <div className="absolute -top-[20%] left-1/2 h-[500px] w-[800px] -translate-x-1/2 rounded-full bg-primary/10 opacity-50 blur-[120px] dark:bg-primary/20" />
             </div>
         </>
     );
 }
-
-Dashboard.layout = {
-    breadcrumbs: [
-        {
-            title: 'Dashboard',
-            href: dashboard(),
-        },
-    ],
-};

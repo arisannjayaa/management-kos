@@ -1,26 +1,188 @@
 <?php
 
-use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\AuditLogController;
+use App\Http\Controllers\BillingController;
+use App\Http\Controllers\ChargeTypeController;
+use App\Http\Controllers\ComplaintController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\OccupancyController;
+use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\PropertyController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\RoleController;
+use App\Http\Controllers\RoomController;
+use App\Http\Controllers\TenantController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\WaSessionController;
 use Illuminate\Support\Facades\Route;
-use Laravel\Fortify\Features;
 
-Route::inertia('/', 'welcome', [
-    'canRegister' => Features::enabled(Features::registration()),
-])->name('home');
+Route::get('/', function () {
+    if (auth()->check()) {
+        return redirect()->route('dashboard.index');
+    }
+
+    return redirect()->route('login');
+})->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::inertia('dashboard', 'dashboard')->name('dashboard');
 
-    Route::prefix('employee')->name('employee.')->group(function () {
-        Route::get('/', [EmployeeController::class, 'index'])->name('index');
-        Route::post('/', [EmployeeController::class, 'create'])->name('create');
-        Route::put('/update', [EmployeeController::class, 'update'])->name('update');
-        Route::delete('/bulk-destroy', [EmployeeController::class, 'bulkDestroy'])->name('bulk-destroy');
-        Route::delete('/delete/{id}', [EmployeeController::class, 'delete'])->name('delete');
-        Route::post('/restore', [EmployeeController::class, 'restore'])->name('restore');
-        Route::get('/form/{id?}', [EmployeeController::class, 'form'])->name('form');
-        Route::get('/detail/{id}', [EmployeeController::class, 'detail'])->name('detail');
+    // ==========================================
+    // UTAMA
+    // ==========================================
+    Route::get('/dashboard', [DashboardController::class, 'index'])->middleware('permission:dashboard.view')->name('dashboard.index');
+
+    // ==========================================
+    // MANAJEMEN KOS
+    // ==========================================
+
+    // Properties
+    Route::prefix('properties')->name('properties.')->group(function () {
+        Route::get('/', [PropertyController::class, 'index'])->middleware('permission:property.view')->name('index');
+        Route::post('/', [PropertyController::class, 'create'])->middleware('permission:property.create')->name('create');
+        Route::put('/update/{id}', [PropertyController::class, 'update'])->middleware('permission:property.update')->name('update');
+        Route::delete('/delete/{id}', [PropertyController::class, 'delete'])->middleware('permission:property.delete')->name('delete');
+        Route::post('/restore/{id}', [PropertyController::class, 'restore'])->middleware('permission:property.update')->name('restore');
+        Route::delete('/force-delete/{id}', [PropertyController::class, 'forceDelete'])->middleware('permission:property.delete')->name('force-delete');
+
+        // Bulk Actions
+        Route::delete('/bulk-destroy', [PropertyController::class, 'bulkDestroy'])->middleware('permission:property.delete')->name('bulk-destroy');
+        Route::delete('/bulk-force-delete', [PropertyController::class, 'bulkForceDelete'])->middleware('permission:property.delete')->name('bulk-force-delete');
+        Route::post('/bulk-restore', [PropertyController::class, 'bulkRestore'])->middleware('permission:property.update')->name('bulk-restore');
     });
+
+    // Rooms
+    Route::prefix('rooms')->name('rooms.')->group(function () {
+        Route::get('/', [RoomController::class, 'index'])->middleware('permission:room.view')->name('index');
+        Route::post('/', [RoomController::class, 'create'])->middleware('permission:room.create')->name('create');
+        Route::put('/update/{id}', [RoomController::class, 'update'])->middleware('permission:room.update')->name('update');
+        Route::delete('/delete/{id}', [RoomController::class, 'delete'])->middleware('permission:room.delete')->name('delete');
+
+        Route::delete('/bulk-destroy', [RoomController::class, 'bulkDestroy'])->middleware('permission:room.delete')->name('bulk-destroy');
+    });
+
+    // Tenants
+    Route::prefix('tenants')->name('tenants.')->group(function () {
+        Route::get('/', [TenantController::class, 'index'])->middleware('permission:tenant.view')->name('index');
+        Route::post('/', [TenantController::class, 'create'])->middleware('permission:tenant.create')->name('create');
+        Route::put('/update/{id}', [TenantController::class, 'update'])->middleware('permission:tenant.update')->name('update');
+        Route::delete('/delete/{id}', [TenantController::class, 'delete'])->middleware('permission:tenant.delete')->name('delete');
+
+        Route::delete('/bulk-destroy', [TenantController::class, 'bulkDestroy'])->middleware('permission:tenant.delete')->name('bulk-destroy');
+    });
+
+    // Occupancies
+    Route::prefix('occupancies')->name('occupancies.')->group(function () {
+        Route::get('/', [OccupancyController::class, 'index'])->middleware('permission:occupancy.view')->name('index');
+        Route::post('/', [OccupancyController::class, 'create'])->middleware('permission:occupancy.create')->name('create');
+        Route::put('/update/{id}', [OccupancyController::class, 'update'])->middleware('permission:occupancy.create')->name('update'); // Memakai create karena seeder tidak memiliki occupancy.update
+        Route::post('/checkout/{id}', [OccupancyController::class, 'checkout'])->middleware('permission:occupancy.checkout')->name('checkout');
+        Route::delete('/delete/{id}', [OccupancyController::class, 'delete'])->middleware('permission:occupancy.delete')->name('delete');
+    });
+
+    // ==========================================
+    // KEUANGAN
+    // ==========================================
+
+    // Billings / Invoices
+    Route::prefix('billings')->name('billings.')->group(function () {
+        Route::get('/', [BillingController::class, 'index'])->middleware('permission:invoice.view')->name('index');
+        Route::post('/', [BillingController::class, 'create'])->middleware('permission:invoice.generate-manual')->name('create');
+        Route::put('/update/{id}', [BillingController::class, 'update'])->middleware('permission:invoice.generate-manual')->name('update');
+        Route::post('/input-meter/{id}', [BillingController::class, 'inputMeter'])->middleware('permission:meter_reading.create')->name('input-meter');
+        Route::delete('/delete/{id}', [BillingController::class, 'delete'])->middleware('permission:invoice.void')->name('delete');
+        Route::post('/{id}/send-reminder', [BillingController::class, 'sendWaReminder'])->middleware('permission:invoice.view')->name('send-reminder');
+    });
+
+    // Payments
+    Route::prefix('payments')->name('payments.')->group(function () {
+        Route::get('/', [PaymentController::class, 'index'])->middleware('permission:payment.view')->name('index');
+        Route::post('/', [PaymentController::class, 'create'])->middleware('permission:payment.create')->name('create');
+        Route::delete('/delete/{id}', [PaymentController::class, 'delete'])->middleware('permission:payment.delete')->name('delete');
+    });
+
+    // Expenses
+    Route::prefix('expenses')->name('expenses.')->group(function () {
+        Route::get('/', [ExpenseController::class, 'index'])->middleware('permission:expense.view')->name('index');
+        Route::post('/', [ExpenseController::class, 'create'])->middleware('permission:expense.create')->name('create');
+        Route::put('/update/{id}', [ExpenseController::class, 'update'])->middleware('permission:expense.update')->name('update');
+        Route::delete('/delete/{id}', [ExpenseController::class, 'delete'])->middleware('permission:expense.delete')->name('delete');
+
+        // Expense Categories (Nested Prefix)
+        Route::prefix('categories')->name('categories.')->group(function () {
+            Route::get('/', [ExpenseController::class, 'categoriesIndex'])->middleware('permission:expense_category.view')->name('index');
+            Route::post('/', [ExpenseController::class, 'categoriesCreate'])->middleware('permission:expense_category.create')->name('create');
+        });
+    });
+
+    // ==========================================
+    // OPERASIONAL
+    // ==========================================
+
+    // Complaints
+    Route::prefix('complaints')->name('complaints.')->group(function () {
+        Route::get('/', [ComplaintController::class, 'index'])->middleware('permission:complaint.view')->name('index');
+        Route::post('/', [ComplaintController::class, 'create'])->middleware('permission:complaint.create')->name('create');
+        Route::put('/update-status/{id}', [ComplaintController::class, 'updateStatus'])->middleware('permission:complaint.update')->name('update-status');
+        Route::delete('/delete/{id}', [ComplaintController::class, 'delete'])->middleware('permission:complaint.delete')->name('delete');
+    });
+
+    // Reports
+    Route::prefix('reports')->name('reports.')->group(function () {
+        Route::get('/', [ReportController::class, 'index'])->middleware('permission:report.view')->name('index');
+        Route::get('/income', [ReportController::class, 'income'])->middleware('permission:report.view')->name('income');
+        Route::get('/profit-loss', [ReportController::class, 'profitLoss'])->middleware('permission:report.view')->name('profit-loss');
+    });
+
+    // ==========================================
+    // MASTER DATA & PENGGUNA
+    // ==========================================
+
+    // Charge Types (Master Data Biaya)
+    Route::prefix('charge-types')->name('charge-types.')->group(function () {
+        Route::get('/', [ChargeTypeController::class, 'index'])->middleware('permission:charge_type.view')->name('index');
+        Route::post('/', [ChargeTypeController::class, 'create'])->middleware('permission:charge_type.create')->name('create');
+        Route::put('/update/{id}', [ChargeTypeController::class, 'update'])->middleware('permission:charge_type.update')->name('update');
+        Route::delete('/delete/{id}', [ChargeTypeController::class, 'delete'])->middleware('permission:charge_type.delete')->name('delete');
+    });
+
+    // Users (Staff & Owners)
+    Route::prefix('users')->name('users.')->group(function () {
+        Route::get('/staff', [UserController::class, 'staffIndex'])->middleware('permission:staff.manage')->name('staff.index');
+        Route::get('/owners', [UserController::class, 'ownerIndex'])->middleware('permission:staff.manage')->name('owner.index');
+        Route::post('/', [UserController::class, 'create'])->middleware('permission:staff.manage')->name('create');
+        Route::put('/update/{id}', [UserController::class, 'update'])->middleware('permission:staff.manage')->name('update');
+        Route::delete('/delete/{id}', [UserController::class, 'delete'])->middleware('permission:staff.manage')->name('delete');
+    });
+
+    // ==========================================
+    // SISTEM & PENGATURAN
+    // ==========================================
+
+    // Roles & Permissions
+    Route::prefix('roles')->name('roles.')->group(function () {
+        Route::get('/', [RoleController::class, 'index'])->middleware('permission:role.manage')->name('index');
+        Route::post('/', [RoleController::class, 'create'])->middleware('permission:role.manage')->name('create');
+        Route::put('/update/{id}', [RoleController::class, 'update'])->middleware('permission:role.manage')->name('update');
+        Route::delete('/delete/{id}', [RoleController::class, 'delete'])->middleware('permission:role.manage')->name('delete');
+    });
+
+    // WA Gateway Session
+    Route::prefix('wa-session')->name('wa-session.')->group(function () {
+        Route::get('/', [WaSessionController::class, 'index'])->middleware('permission:system_settings.manage')->name('index');
+        Route::get('/status', [WaSessionController::class, 'status'])->middleware('permission:system_settings.manage')->name('status');
+        Route::get('/groups', [WaSessionController::class, 'getGroups'])->middleware('permission:system_settings.manage')->name('groups');
+        Route::post('/init', [WaSessionController::class, 'init'])->middleware('permission:system_settings.manage')->name('init');
+        Route::post('/test-send', [WaSessionController::class, 'testSend'])->middleware('permission:system_settings.manage')->name('test-send');
+        Route::post('/broadcast', [WaSessionController::class, 'broadcast'])->middleware('permission:system_settings.manage')->name('broadcast');
+    });
+
+    // Audit Logs
+    Route::prefix('audit-logs')->name('audit-logs.')->group(function () {
+        Route::get('/', [AuditLogController::class, 'index'])->middleware('permission:audit_logs.view')->name('index');
+        Route::delete('/clear', [AuditLogController::class, 'clear'])->middleware('permission:system_settings.manage')->name('clear'); // Tidak ada audit_logs.delete di seeder
+    });
+
 });
 
 require __DIR__.'/settings.php';

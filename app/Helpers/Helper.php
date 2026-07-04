@@ -6,6 +6,41 @@ use Illuminate\Support\Facades\Http;
 
 class Helper
 {
+    public static function terbilang($angka) {
+        $angka = abs($angka);
+        $baca = array("", "Satu", "Dua", "Tiga", "Empat", "Lima", "Enam", "Tujuh", "Delapan", "Sembilan", "Sepuluh", "Sebelas");
+        $terbilang = "";
+
+        if ($angka < 12) {
+            $terbilang = " " . $baca[$angka];
+        } else if ($angka < 20) {
+            $terbilang = self::terbilang($angka - 10) . " Belas";
+        } else if ($angka < 100) {
+            // Tambahkan spasi setelah Puluh
+            $terbilang = self::terbilang($angka / 10) . " Puluh " . self::terbilang($angka % 10);
+        } else if ($angka < 200) {
+            // Tambahkan spasi setelah Seratus
+            $terbilang = " Seratus " . self::terbilang($angka - 100);
+        } else if ($angka < 1000) {
+            // Tambahkan spasi setelah Ratus
+            $terbilang = self::terbilang($angka / 100) . " Ratus " . self::terbilang($angka % 100);
+        } else if ($angka < 2000) {
+            // Tambahkan spasi setelah Seribu
+            $terbilang = " Seribu " . self::terbilang($angka - 1000);
+        } else if ($angka < 1000000) {
+            // Tambahkan spasi setelah Ribu
+            $terbilang = self::terbilang($angka / 1000) . " Ribu " . self::terbilang($angka % 1000);
+        } else if ($angka < 1000000000) {
+            // Tambahkan spasi setelah Juta
+            $terbilang = self::terbilang($angka / 1000000) . " Juta " . self::terbilang($angka % 1000000);
+        }
+
+        // Bersihkan potensi spasi ganda di tengah kalimat sebelum dikembalikan
+        $terbilang = preg_replace('/\s+/', ' ', $terbilang);
+
+        return trim($terbilang);
+    }
+
     /**
      * @return string
      */

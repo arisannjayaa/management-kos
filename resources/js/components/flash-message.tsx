@@ -5,17 +5,20 @@ import { toast } from 'sonner';
 export default function FlashMessage() {
     const { flash } = usePage().props as any;
 
-    const lastMessage = useRef('');
+    // Simpan ID flash terakhir yang berhasil dirender, bukan teks pesannya
+    const lastFlashId = useRef('');
 
     useEffect(() => {
-        if (flash?.success && flash.success !== lastMessage.current) {
-            lastMessage.current = flash.success;
-            toast.success(flash.success);
+        // Cek berdasarkan ID sukses
+        if (flash?.success?.id && flash.success.id !== lastFlashId.current) {
+            lastFlashId.current = flash.success.id; // Kunci ID ini agar tidak re-render ganda
+            toast.success(flash.success.message); // Tampilkan teks pesannya
         }
 
-        if (flash?.error && flash.error !== lastMessage.current) {
-            lastMessage.current = flash.error;
-            toast.error(flash.error);
+        // Cek berdasarkan ID error
+        if (flash?.error?.id && flash.error.id !== lastFlashId.current) {
+            lastFlashId.current = flash.error.id;
+            toast.error(flash.error.message);
         }
     }, [flash]);
 
