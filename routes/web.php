@@ -12,6 +12,7 @@ use App\Http\Controllers\PropertyController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\RoomController;
+use App\Http\Controllers\RoomTypeController;
 use App\Http\Controllers\TenantController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WaSessionController;
@@ -36,7 +37,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // MANAJEMEN KOS
     // ==========================================
 
-    // Properties
+    // ─── 1. MODUL PROPERTI ──────────────────────────────────────────────────
     Route::prefix('properties')->name('properties.')->group(function () {
         Route::get('/', [PropertyController::class, 'index'])->middleware('permission:property.view')->name('index');
         Route::post('/', [PropertyController::class, 'create'])->middleware('permission:property.create')->name('create');
@@ -51,14 +52,37 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/bulk-restore', [PropertyController::class, 'bulkRestore'])->middleware('permission:property.update')->name('bulk-restore');
     });
 
-    // Rooms
+    // ─── 2. MODUL TIPE KAMAR & TARIF (TAMBAHAN WAJIB) ───────────────────────
+    Route::prefix('room-types')->name('room-types.')->group(function () {
+        Route::get('/', [RoomTypeController::class, 'index'])->middleware('permission:room.view')->name('index');
+        // Memanggil service implementasi createWithTiers & updateWithTiers
+        Route::post('/', [RoomTypeController::class, 'create'])->middleware('permission:room.create')->name('create');
+        Route::put('/update/{id}', [RoomTypeController::class, 'update'])->middleware('permission:room.update')->name('update');
+        Route::delete('/delete/{id}', [RoomTypeController::class, 'delete'])->middleware('permission:room.delete')->name('delete');
+        Route::post('/restore/{id}', [RoomTypeController::class, 'restore'])->middleware('permission:property.update')->name('restore');
+        Route::delete('/force-delete/{id}', [RoomTypeController::class, 'forceDelete'])->middleware('permission:property.delete')->name('force-delete');
+
+        // Bulk Actions
+        Route::delete('/bulk-destroy', [RoomTypeController::class, 'bulkDestroy'])->middleware('permission:property.delete')->name('bulk-destroy');
+        Route::delete('/bulk-force-delete', [RoomTypeController::class, 'bulkForceDelete'])->middleware('permission:property.delete')->name('bulk-force-delete');
+        Route::post('/bulk-restore', [RoomTypeController::class, 'bulkRestore'])->middleware('permission:property.update')->name('bulk-restore');
+    });
+
+    // ─── 3. MODUL KAMAR ─────────────────────────────────────────────────────
     Route::prefix('rooms')->name('rooms.')->group(function () {
         Route::get('/', [RoomController::class, 'index'])->middleware('permission:room.view')->name('index');
         Route::post('/', [RoomController::class, 'create'])->middleware('permission:room.create')->name('create');
         Route::put('/update/{id}', [RoomController::class, 'update'])->middleware('permission:room.update')->name('update');
         Route::delete('/delete/{id}', [RoomController::class, 'delete'])->middleware('permission:room.delete')->name('delete');
 
+        // FIX: Mengubah PropertyController menjadi RoomController & Hak Akses menjadi room.*
+        Route::post('/restore/{id}', [RoomController::class, 'restore'])->middleware('permission:room.update')->name('restore');
+        Route::delete('/force-delete/{id}', [RoomController::class, 'forceDelete'])->middleware('permission:room.delete')->name('force-delete');
+
+        // FIX: Bulk Actions khusus untuk entitas Kamar
         Route::delete('/bulk-destroy', [RoomController::class, 'bulkDestroy'])->middleware('permission:room.delete')->name('bulk-destroy');
+        Route::delete('/bulk-force-delete', [RoomController::class, 'bulkForceDelete'])->middleware('permission:room.delete')->name('bulk-force-delete');
+        Route::post('/bulk-restore', [RoomController::class, 'bulkRestore'])->middleware('permission:room.update')->name('bulk-restore');
     });
 
     // Tenants
