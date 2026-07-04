@@ -15,11 +15,8 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RolePermissionSeeder::class, // Jika Anda pakai spatie/permission
             AdminSeeder::class, // Contoh: Seeder untuk akun Admin
-//            CategorySeeder::class,
-//            TagSeeder::class,
-//            AccountSeeder::class,
-//            TransactionSeeder::class,
-//            DebtSeeder::class,
+            OwnerSeeder::class,
+            StaffSeeder::class,
         ]);
 
         // 2. SEEDER DUMMY: Hanya dijalankan jika BUKAN di environment 'production'
