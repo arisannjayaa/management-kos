@@ -3,6 +3,7 @@
 import {
     LayoutDashboard,
     Building,
+    Layers, // 🌟 Tambahan Ikon untuk Tipe Kamar
     BedDouble,
     Users,
     KeyRound,
@@ -22,9 +23,9 @@ import {
 import type { NavGroup } from '@/types';
 
 // Placeholder import rute - sesuaikan dengan struktur file/helper route Anda
-// Jika menggunakan Ziggy, Anda bisa langsung memakai route('properties.index') di href
 import dashboardController from '@/actions/App/Http/Controllers/DashboardController';
 import propertyRoute from '@/routes/properties';
+import roomTypeRoute from '@/routes/room-types'; // 🌟 Tambahan Rute Tipe Kamar
 import roomRoute from '@/routes/rooms';
 import tenantRoute from '@/routes/tenants';
 import occupancyRoute from '@/routes/occupancies';
@@ -47,7 +48,7 @@ export const sidebarMenus: NavGroup[] = [
                 title: 'Dashboard',
                 href: dashboardController.index(),
                 icon: LayoutDashboard,
-                permission: 'dashboard.view', // Disesuaikan dengan seeder
+                permission: 'dashboard.view',
                 activePatterns: ['/dashboard'],
             },
         ],
@@ -59,28 +60,35 @@ export const sidebarMenus: NavGroup[] = [
                 title: 'Properti',
                 href: propertyRoute.index(),
                 icon: Building,
-                permission: 'property.view', // Disesuaikan dengan seeder
+                permission: 'property.view',
                 activePatterns: ['/properties'],
+            },
+            {
+                title: 'Tipe Kamar', // 🌟 Modul Baru di Fase 1
+                href: roomTypeRoute.index(),
+                icon: Layers,
+                permission: 'room.view', // Berbagi permission view dengan modul kamar
+                activePatterns: ['/room-types'],
             },
             {
                 title: 'Kamar',
                 href: roomRoute.index(),
                 icon: BedDouble,
-                permission: 'room.view', // Disesuaikan dengan seeder
+                permission: 'room.view',
                 activePatterns: ['/rooms'],
             },
             {
                 title: 'Tenant',
                 href: tenantRoute.index(),
                 icon: Users,
-                permission: 'tenant.view', // Disesuaikan dengan seeder
+                permission: 'tenant.view',
                 activePatterns: ['/tenants'],
             },
             {
                 title: 'Okupansi & Check-in',
                 href: occupancyRoute.index(),
                 icon: KeyRound,
-                permission: 'occupancy.view', // Disesuaikan dengan seeder
+                permission: 'occupancy.view',
                 activePatterns: ['/occupancies'],
             },
         ],
@@ -92,21 +100,21 @@ export const sidebarMenus: NavGroup[] = [
                 title: 'Tagihan / Billing',
                 href: billingRoute.index(),
                 icon: FileText,
-                permission: 'invoice.view', // Di seeder memakai 'invoice.view'
+                permission: 'invoice.view',
                 activePatterns: ['/billings'],
             },
             {
                 title: 'Pembayaran',
                 href: paymentRoute.index(),
                 icon: Banknote,
-                permission: 'payment.view', // Disesuaikan dengan seeder
+                permission: 'payment.view',
                 activePatterns: ['/payments'],
             },
             {
                 title: 'Pengeluaran',
                 href: expenseRoute.index(),
                 icon: ReceiptText,
-                permission: 'expense.view', // Disesuaikan dengan seeder
+                permission: 'expense.view',
                 activePatterns: ['/expenses'],
             },
         ],
@@ -118,14 +126,14 @@ export const sidebarMenus: NavGroup[] = [
                 title: 'Komplain',
                 href: complaintRoute.index(),
                 icon: MessageSquareWarning,
-                permission: 'complaint.view', // Disesuaikan dengan seeder
+                permission: 'complaint.view',
                 activePatterns: ['/complaints'],
             },
             {
                 title: 'Laporan',
                 href: reportRoute.index(),
                 icon: PieChart,
-                permission: 'report.view', // Disesuaikan dengan seeder
+                permission: 'report.view',
                 activePatterns: ['/reports'],
             },
         ],
@@ -137,22 +145,22 @@ export const sidebarMenus: NavGroup[] = [
                 title: 'Master Charge Types',
                 href: chargeTypeRoute.index(),
                 icon: Tags,
-                permission: 'charge_type.view', // Disesuaikan dengan seeder
+                permission: 'charge_type.view',
                 activePatterns: ['/charge-types'],
             },
             {
                 title: 'Kelola Staff',
-                href: '', // Sesuai nama rute
+                href: '',
                 icon: UserCog,
-                permission: 'staff.manage', // Disesuaikan dengan seeder
-                activePatterns: ['/users/staff'], // Disesuaikan pola rute
+                permission: 'staff.manage',
+                activePatterns: ['/users/staff'],
             },
             {
                 title: 'Owner Accounts',
-                href: '', // Sesuai nama rute
+                href: '',
                 icon: ShieldCheck,
-                permission: 'staff.manage', // Menggunakan permission manage staf secara general
-                activePatterns: ['/users/owners'], // Disesuaikan pola rute
+                permission: 'staff.manage',
+                activePatterns: ['/users/owners'],
             },
         ],
     },
@@ -163,21 +171,21 @@ export const sidebarMenus: NavGroup[] = [
                 title: 'Roles & Permissions',
                 href: roleRoute.index(),
                 icon: KeyRound,
-                permission: 'role.manage', // Disesuaikan dengan seeder
+                permission: 'role.manage',
                 activePatterns: ['/roles'],
             },
             {
                 title: 'WA Gateway & Reminder',
                 href: waGatewayRoute.index().url,
                 icon: MessageCircle,
-                permission: 'system_settings.manage', // Disesuaikan dengan seeder
+                permission: 'system_settings.manage',
                 activePatterns: ['/wa-session'],
             },
             {
                 title: 'Audit Log',
                 href: auditLogRoute.index(),
                 icon: ClipboardList,
-                permission: 'audit_logs.view', // Disesuaikan dengan seeder
+                permission: 'audit_logs.view',
                 activePatterns: ['/audit-logs'],
             },
         ],
