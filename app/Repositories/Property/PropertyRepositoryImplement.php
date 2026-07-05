@@ -2,16 +2,17 @@
 
 namespace App\Repositories\Property;
 
-use LaravelEasyRepository\Implementations\Eloquent;
 use App\Models\Property;
+use LaravelEasyRepository\Implementations\Eloquent;
 
-class PropertyRepositoryImplement extends Eloquent implements PropertyRepository{
-
+class PropertyRepositoryImplement extends Eloquent implements PropertyRepository
+{
     /**
-    * Model class to be used in this repository for the common methods inside Eloquent
-    * Don't remove or change $this->model variable name
-    * @property Model|mixed $model;
-    */
+     * Model class to be used in this repository for the common methods inside Eloquent
+     * Don't remove or change $this->model variable name
+     *
+     * @property Model|mixed $model;
+     */
     protected Property $model;
 
     public function __construct(Property $model)
@@ -20,7 +21,6 @@ class PropertyRepositoryImplement extends Eloquent implements PropertyRepository
     }
 
     /**
-     * @param $ids
      * @return mixed
      */
     public function bulkDelete($ids)
@@ -30,7 +30,6 @@ class PropertyRepositoryImplement extends Eloquent implements PropertyRepository
     }
 
     /**
-     * @param $id
      * @return mixed
      */
     public function forceDelete($id)
@@ -42,7 +41,6 @@ class PropertyRepositoryImplement extends Eloquent implements PropertyRepository
     }
 
     /**
-     * @param $ids
      * @return mixed
      */
     public function bulkForceDelete($ids)
@@ -54,7 +52,6 @@ class PropertyRepositoryImplement extends Eloquent implements PropertyRepository
     }
 
     /**
-     * @param $id
      * @return mixed
      */
     public function restore($id)
@@ -67,7 +64,6 @@ class PropertyRepositoryImplement extends Eloquent implements PropertyRepository
     }
 
     /**
-     * @param $ids
      * @return mixed
      */
     public function bulkRestore($ids)
@@ -80,7 +76,11 @@ class PropertyRepositoryImplement extends Eloquent implements PropertyRepository
 
     public function getByOwner(string $ownerId)
     {
-        return $this->model::where('owner_id', $ownerId)->latest()->get();
+        return $this->model::with(['rooms' => function ($query) {
+            $query->with('roomType');
+            $query->where('status', 'available')->orderBy('room_number', 'asc');
+        }, 'roomTypes.pricingTiers'])
+            ->where('owner_id', $ownerId)->latest()->get();
     }
 
     public function findWithDetails(string $id)

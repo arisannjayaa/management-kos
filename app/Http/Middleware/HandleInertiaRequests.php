@@ -39,7 +39,12 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'name' => config('app.name'),
             'auth' => [
-                'user' => $request->user(),
+                'user' => $request->user() ? [
+                    'id' => $request->user()->id,
+                    'name' => $request->user()->name,
+                    'roles' => $request->user()->getRoleNames(), // 🌟 Kirim daftar nama role ke frontend
+                    'permissions' => $request->user()->getAllPermissions()->pluck('name'),
+                ] : null,
 
                 'roles' => $request->user()
                     ? $request->user()->getRoleNames()
@@ -54,12 +59,12 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'success' => fn () => $request->session()->has('success') ? [
                     'message' => $request->session()->pull('success'),
-                    'id'      => uniqid(), // <-- ID unik tiap kali session sukses dibuat
+                    'id' => uniqid(), // <-- ID unik tiap kali session sukses dibuat
                 ] : null,
 
                 'error' => fn () => $request->session()->has('error') ? [
                     'message' => $request->session()->pull('error'),
-                    'id'      => uniqid(), // <-- ID unik tiap kali session error dibuat
+                    'id' => uniqid(), // <-- ID unik tiap kali session error dibuat
                 ] : null,
             ],
             'assetUrl' => asset(''),

@@ -12,8 +12,19 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('tenants', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
+
+            // Mengunci kepemilikan data tenant berdasarkan Owner yang login
+            $table->foreignUuid('owner_id')->constrained('users')->onDelete('cascade');
+
+            $table->string('name', 150);
+            $table->string('ktp_number', 20)->nullable();
+            $table->string('phone', 20); // Basis nomor pengiriman WhatsApp Gateway
+            $table->string('emergency_contact', 20)->nullable();
+            $table->enum('status', ['active', 'inactive'])->default('active');
+
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

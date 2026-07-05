@@ -59,7 +59,8 @@ class RoomController extends Controller
     public function update(RoomRequest $request, $id)
     {
         $data = [
-            'room_type_id' => Helper::decrypt($request->room_type_id),
+            'property_id' => $request->property_id,
+            'room_type_id' => $request->room_type_id,
             'room_number' => $request->room_number,
             'status' => $request->status,
         ];

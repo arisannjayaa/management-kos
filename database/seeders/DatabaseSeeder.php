@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             AdminSeeder::class, // Contoh: Seeder untuk akun Admin
             OwnerSeeder::class,
             StaffSeeder::class,
+            KosManagementSeeder::class,
         ]);
 
         // 2. SEEDER DUMMY: Hanya dijalankan jika BUKAN di environment 'production'

@@ -13,6 +13,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\RoomController;
 use App\Http\Controllers\RoomTypeController;
+use App\Http\Controllers\SecureFileController;
 use App\Http\Controllers\TenantController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WaSessionController;
@@ -85,22 +86,21 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/bulk-restore', [RoomController::class, 'bulkRestore'])->middleware('permission:room.update')->name('bulk-restore');
     });
 
-    // Tenants
     Route::prefix('tenants')->name('tenants.')->group(function () {
         Route::get('/', [TenantController::class, 'index'])->middleware('permission:tenant.view')->name('index');
         Route::post('/', [TenantController::class, 'create'])->middleware('permission:tenant.create')->name('create');
         Route::put('/update/{id}', [TenantController::class, 'update'])->middleware('permission:tenant.update')->name('update');
         Route::delete('/delete/{id}', [TenantController::class, 'delete'])->middleware('permission:tenant.delete')->name('delete');
 
+        // Mass Action
         Route::delete('/bulk-destroy', [TenantController::class, 'bulkDestroy'])->middleware('permission:tenant.delete')->name('bulk-destroy');
     });
 
-    // Occupancies
+    // ─── 5. MODUL OKUPANSI & CHECK-IN (KONTRAK) ─────────────────────────────
     Route::prefix('occupancies')->name('occupancies.')->group(function () {
         Route::get('/', [OccupancyController::class, 'index'])->middleware('permission:occupancy.view')->name('index');
         Route::post('/', [OccupancyController::class, 'create'])->middleware('permission:occupancy.create')->name('create');
-        Route::put('/update/{id}', [OccupancyController::class, 'update'])->middleware('permission:occupancy.create')->name('update'); // Memakai create karena seeder tidak memiliki occupancy.update
-        Route::post('/checkout/{id}', [OccupancyController::class, 'checkout'])->middleware('permission:occupancy.checkout')->name('checkout');
+        Route::post('/check-out/{id}', [OccupancyController::class, 'checkOut'])->middleware('permission:occupancy.update')->name('check-out');
         Route::delete('/delete/{id}', [OccupancyController::class, 'delete'])->middleware('permission:occupancy.delete')->name('delete');
     });
 
@@ -205,6 +205,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('audit-logs')->name('audit-logs.')->group(function () {
         Route::get('/', [AuditLogController::class, 'index'])->middleware('permission:audit_logs.view')->name('index');
         Route::delete('/clear', [AuditLogController::class, 'clear'])->middleware('permission:system_settings.manage')->name('clear'); // Tidak ada audit_logs.delete di seeder
+    });
+
+    Route::prefix('secure')->name('secure.')->group(function () {
+        Route::get('/s/{path}', [SecureFileController::class, 'index'])->name('file');
+        Route::get('/d/{path}', [SecureFileController::class, 'download'])->name('file.download');
+        Route::get('/f/{path}', [SecureFileController::class, 'filepond'])->name('file.filepond');
     });
 
 });
