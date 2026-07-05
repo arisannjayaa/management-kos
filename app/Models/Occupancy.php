@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use LaravelEasyRepository\Traits\GenUid;
 
@@ -54,5 +55,13 @@ class Occupancy extends Model
     public function pricingTier(): BelongsTo
     {
         return $this->belongsTo(RoomTypePricingTier::class, 'room_type_pricing_tier_id');
+    }
+
+    /**
+     * 🌟 KUNCI PERBAIKAN: Hubungkan Kontrak Huni dengan Banyak Biaya Tambahan
+     */
+    public function occupancyCharges(): HasMany
+    {
+        return $this->hasMany(OccupancyCharge::class, 'occupancy_id');
     }
 }

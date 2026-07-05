@@ -43,9 +43,10 @@ type Props = {
     filters: OccupancyFilters;
     properties: any[];
     tenants: any[];
+    chargeTypes: any[]; // 🌟 SUNTIKKAN DEFINISI TIPE PROPS BARU
 };
 
-export default function OccupancyIndex({ occupancies, filters, properties = [], tenants = [] }: Props) {
+export default function OccupancyIndex({ occupancies, filters, properties = [], tenants = [], chargeTypes = [] }: Props) {
     const isMobile = useIsMobile();
     const [mounted, setMounted] = useState(false);
 
@@ -59,6 +60,7 @@ export default function OccupancyIndex({ occupancies, filters, properties = [], 
     const canDelete = isSuperAdmin || userPermissions.includes('occupancy.delete');
 
     const propertiesArray = Array.isArray(properties) ? properties : (properties as any)?.data ?? [];
+    const chargeTypesArray = Array.isArray(chargeTypes) ? chargeTypes : (chargeTypes as any)?.data ?? [];
 
     // States lokal penanganan checkout dengan penanggalan
     const [checkOutItem, setCheckOutItem] = useState<Occupancy | null>(null);
@@ -125,7 +127,10 @@ export default function OccupancyIndex({ occupancies, filters, properties = [], 
             <>
                 <Head title="Manajemen Kontrak Sewa" />
                 <MobileList initialOccupancies={occupancies} filters={filters} onAdd={() => modal.open()} onCheckOut={(oc) => setCheckOutItem(oc)} onDelete={(oc) => softDelete.trigger(oc)} onSearch={handleSearch} searchValue={searchValue} isPending={isPending} />
-                <OccupancyFormModal open={modal.isOpen} properties={propertiesArray} tenants={tenants} onClose={modal.close} />
+
+                {/* 🌟 FIX MOBILE: Oper data chargeTypesArray ke dalam modal form */}
+                <OccupancyFormModal open={modal.isOpen} properties={propertiesArray} tenants={tenants} chargeTypes={chargeTypesArray} onClose={modal.close} />
+
                 <DeleteConfirmDialog open={softDelete.open} onOpenChange={softDelete.setOpen} description={<>Hapus log dokumen sewa kamar ini dari database?</>} onConfirm={softDelete.confirm} />
 
                 {/* Dialog Penanggalan Checkout Mobile */}
@@ -169,7 +174,8 @@ export default function OccupancyIndex({ occupancies, filters, properties = [], 
                 <DataTablePagination meta={occupancies} onPageChange={goToPage} />
             </div>
 
-            <OccupancyFormModal open={modal.isOpen} properties={propertiesArray} tenants={tenants} onClose={modal.close} />
+            {/* 🌟 FIX DESKTOP: Oper data chargeTypesArray ke dalam modal form */}
+            <OccupancyFormModal open={modal.isOpen} properties={propertiesArray} tenants={tenants} chargeTypes={chargeTypesArray} onClose={modal.close} />
 
             {/* Dialog Hapus Tunggal Log Sewa */}
             <DeleteConfirmDialog open={softDelete.open} onOpenChange={softDelete.setOpen} description={<>Menghapus log okupansi sewa bersifat permanen di database. Lanjutkan?</>} onConfirm={softDelete.confirm} />

@@ -1,7 +1,7 @@
 // resources/js/pages/Occupancies/form.tsx
 
 import { useForm, usePage } from '@inertiajs/react';
-import { BedDouble, Building2, Layers, User, Calendar, Coins, ShieldAlert } from 'lucide-react';
+import { BedDouble, Building2, Layers, User, Calendar, Coins, ShieldAlert, Plus, Trash2, Receipt } from 'lucide-react';
 import type { FormEvent } from 'react';
 import { useEffect, useState } from 'react';
 
@@ -32,6 +32,11 @@ function useIsMobile() {
     return isMobile;
 }
 
+type ChargeInput = {
+    charge_type_id: string;
+    amount: string; // Keep as string for input handle, casted on backend request rules
+};
+
 type FormData = {
     property_id: string;
     room_id: string;
@@ -42,16 +47,18 @@ type FormData = {
     billing_day: string;
     price: string;
     deposit_amount: string;
+    charges: ChargeInput[]; // 🌟 SUNTIKAN STRUKTUR PAYLOAD BIAYA TAMBAHAN
 };
 
 type Props = {
     open: boolean;
     properties: any[];
     tenants: any[];
+    chargeTypes: any[]; // 🌟 TERIMA DATA DROPDOWN DARI CONTROLLER INDEX
     onClose: () => void;
 };
 
-export function OccupancyFormModal({ open, properties = [], tenants = [], onClose }: Props) {
+export function OccupancyFormModal({ open, properties = [], tenants = [], chargeTypes = [], onClose }: Props) {
     const isMobile = useIsMobile();
 
     const { auth } = usePage<any>().props;
@@ -62,6 +69,7 @@ export function OccupancyFormModal({ open, properties = [], tenants = [], onClos
 
     const propertiesList = Array.isArray(properties) ? properties : (properties as any)?.data ?? [];
     const tenantsList = Array.isArray(tenants) ? tenants : (tenants as any)?.data ?? [];
+    const chargeTypesList = Array.isArray(chargeTypes) ? chargeTypes : (chargeTypes as any)?.data ?? [];
 
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm<FormData>({
         property_id: '',
@@ -72,15 +80,18 @@ export function OccupancyFormModal({ open, properties = [], tenants = [], onClos
         start_date: new Date().toISOString().split('T')[0],
         billing_day: '',
         price: '',
-        deposit_amount: ''
+        deposit_amount: '',
+        charges: [] // 🌟 INITIAL STATE ARRAY KOSONG
     });
 
-    // States lokal pemeta data relasi anak internal properti terpilih
+    const filteredChargeTypes = chargeTypesList.filter(
+        (c: any) => String(c.property_id) === String(data.property_id)
+    );
+
     const [availableRooms, setAvailableRooms] = useState<any[]>([]);
     const [availableTypes, setAvailableTypes] = useState<any[]>([]);
     const [availableTiers, setAvailableTiers] = useState<any[]>([]);
 
-    // Handler 1: Ketika Gedung Properti Diubah
     const handlePropertyChange = (propertyId: string) => {
         if (!propertyId) {
             setAvailableRooms([]);
@@ -92,7 +103,8 @@ export function OccupancyFormModal({ open, properties = [], tenants = [], onClos
                 room_id: '',
                 room_type_id: '',
                 room_type_pricing_tier_id: '',
-                price: ''
+                price: '',
+                charges: []
             });
             return;
         }
@@ -100,23 +112,22 @@ export function OccupancyFormModal({ open, properties = [], tenants = [], onClos
         const selectedProp = propertiesList.find((p: any) => String(p.id) === String(propertyId));
         const readyRooms = selectedProp ? (selectedProp.rooms ?? []).filter((r: any) => r.status === 'available') : [];
         const rTypes = selectedProp ? (selectedProp.room_types ?? []) : [];
-        console.log(readyRooms);
+
         setAvailableRooms(readyRooms);
         setAvailableTypes(rTypes);
         setAvailableTiers([]);
 
-        // 🌟 FIX: Gunakan pengisian objek langsung untuk kestabilan state Inertia
         setData({
             ...data,
             property_id: propertyId,
             room_id: '',
             room_type_id: '',
             room_type_pricing_tier_id: '',
-            price: ''
+            price: '',
+            charges: []
         });
     };
 
-    // Handler 2: Ketika Kamar Diubah (Auto lock klasifikasi tipe & harga sewa pokok)
     const handleRoomChange = (roomId: string) => {
         if (!roomId) {
             setAvailableTiers([]);
@@ -135,7 +146,6 @@ export function OccupancyFormModal({ open, properties = [], tenants = [], onClos
 
         setAvailableTiers(rType?.pricing_tiers ?? []);
 
-        // 🌟 FIX: Lepaskan gerbang pengunci "if condition" agar select id kamar dijamin tersimpan bebas macet
         setData({
             ...data,
             room_id: roomId,
@@ -145,7 +155,6 @@ export function OccupancyFormModal({ open, properties = [], tenants = [], onClos
         });
     };
 
-    // Handler 3: Ketika Skema Tarif Berjenjang Diubah (Override nominal harga sewa deal)
     const handleTierChange = (tierId: string) => {
         if (!tierId) {
             const currentType = availableTypes.find((t: any) => String(t.id) === String(data.room_type_id));
@@ -167,7 +176,6 @@ export function OccupancyFormModal({ open, properties = [], tenants = [], onClos
         }
     };
 
-    // Handler 4: Ketika Tanggal Masuk Diubah (Auto kalkulasi siklus hari tagihan)
     const handleDateChange = (dateStr: string) => {
         if (!dateStr) return;
         const dayNum = new Date(dateStr).getDate();
@@ -178,7 +186,34 @@ export function OccupancyFormModal({ open, properties = [], tenants = [], onClos
         });
     };
 
-    // Trigger auto billing day kalkulasi di awal masuk
+    // 🌟 KUMPULAN LOGIKA OPERASI DYNAMIC REPEATER CHARGES 🌟
+    const addChargeRow = () => {
+        setData('charges', [...data.charges, { charge_type_id: '', amount: '' }]);
+    };
+
+    const removeChargeRow = (indexToRemove: number) => {
+        setData('charges', data.charges.filter((_, idx) => idx !== indexToRemove));
+    };
+
+    const handleChargeRowChange = (index: number, key: keyof ChargeInput, value: string) => {
+        const updatedCharges = data.charges.map((charge, idx) => {
+            if (idx === index) {
+                // Auto pre-fill nominal bawaan master seandainya tipe biaya diubah
+                if (key === 'charge_type_id') {
+                    const masterObj = chargeTypesList.find((c: any) => String(c.id) === String(value));
+                    return {
+                        ...charge,
+                        charge_type_id: value,
+                        amount: masterObj ? String(masterObj.base_price ?? '') : ''
+                    };
+                }
+                return { ...charge, [key]: value };
+            }
+            return charge;
+        });
+        setData('charges', updatedCharges);
+    };
+
     useEffect(() => {
         if (open && data.start_date) {
             const dayNum = new Date(data.start_date).getDate();
@@ -380,6 +415,87 @@ export function OccupancyFormModal({ open, properties = [], tenants = [], onClos
                         <FormErrorMessage message={errors.deposit_amount} />
                     </div>
                 </div>
+
+                {/* 🌟 BARU: DYNAMIC REPEATER FIELD UNTUK BIAYA TAMBAHAN KOS 🌟 */}
+                <div className="flex flex-col space-y-2 border-t border-dashed pt-4">
+                    <div className="flex items-center justify-between">
+                        <FormLabel className="flex items-center gap-1 text-slate-500">
+                            <Receipt size={12} /> Paket Paket Biaya Tambahan Bulanan (Opsional)
+                        </FormLabel>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={addChargeRow}
+                            className="h-7 rounded-lg text-[10px] font-black uppercase tracking-wider px-2 gap-1 border-primary/40 text-primary hover:bg-primary/5"
+                            disabled={processing}
+                        >
+                            <Plus size={11} /> Tambah Biaya
+                        </Button>
+                    </div>
+
+                    {data.charges.length === 0 ? (
+                        <p className="text-[10px] text-muted-foreground font-medium italic bg-muted/20 p-3 rounded-xl border border-dashed text-center select-none">
+                            Kamar ini hanya dikenakan biaya sewa pokok tanpa iuran langganan tambahan.
+                        </p>
+                    ) : (
+                        <div className="flex flex-col space-y-2.5">
+                            {data.charges.map((charge, index) => (
+                                <div key={index} className="flex items-start gap-2 bg-muted/40 p-2.5 rounded-xl border border-border/60 animate-in fade-in zoom-in-95 duration-150">
+                                    {/* Dropdown Tipe Biaya Master */}
+                                    <div className="flex-1 flex flex-col space-y-1">
+                                        <select
+                                            value={charge.charge_type_id}
+                                            onChange={(e) => handleChargeRowChange(index, 'charge_type_id', e.target.value)}
+                                            className="w-full h-9 text-xs font-bold rounded-lg border border-border bg-background px-2.5 outline-none focus:border-primary text-foreground appearance-none"
+                                            disabled={processing}
+                                            required
+                                        >
+                                            <option value="">-- Jenis Beban --</option>
+                                            {/* 🌟 SEKARANG MENGGUNAKAN ARRAY YANG SUDAH DISARING */}
+                                            {filteredChargeTypes.map((c: any) => (
+                                                <option key={c.id} value={c.id}>{c.name}</option>
+                                            ))}
+                                        </select>
+                                        {errors[`charges.${index}.charge_type_id` as any] && (
+                                            <p className="text-[9px] font-semibold text-red-500">{errors[`charges.${index}.charge_type_id` as any]}</p>
+                                        )}
+                                    </div>
+
+                                    {/* Input Nominal Kustom */}
+                                    <div className="w-32 flex flex-col space-y-1">
+                                        <div className="relative">
+                                            <Input
+                                                type="number"
+                                                value={charge.amount}
+                                                onChange={(e) => handleChargeRowChange(index, 'amount', e.target.value)}
+                                                placeholder="Harga Pokok"
+                                                className="h-9 rounded-lg bg-background text-xs font-bold font-mono pr-1.5"
+                                                disabled={processing}
+                                            />
+                                        </div>
+                                        {errors[`charges.${index}.amount` as any] && (
+                                            <p className="text-[9px] font-semibold text-red-500">{errors[`charges.${index}.amount` as any]}</p>
+                                        )}
+                                    </div>
+
+                                    {/* Hapus Baris */}
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => removeChargeRow(index)}
+                                        className="size-9 rounded-lg text-red-500 hover:bg-red-50 hover:text-red-600 shrink-0"
+                                        disabled={processing}
+                                    >
+                                        <Trash2 size={13} />
+                                    </Button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
             </form>
         );
     };
@@ -430,8 +546,8 @@ export function OccupancyFormModal({ open, properties = [], tenants = [], onClos
     );
 }
 
-function FormLabel({ children, required = false, htmlFor }: { children: React.ReactNode; required?: boolean; htmlFor?: string }) {
-    return <Label htmlFor={htmlFor} className="flex items-center gap-1 text-[10px] font-bold tracking-wider text-slate-400 uppercase select-none dark:text-slate-500">{children}{required && <span className="text-red-500">*</span>}</Label>;
+function FormLabel({ children, required = false, htmlFor, className }: { children: React.ReactNode; required?: boolean; htmlFor?: string; className?: string }) {
+    return <Label htmlFor={htmlFor} className={cn("flex items-center gap-1 text-[10px] font-bold tracking-wider text-slate-400 uppercase select-none dark:text-slate-500", className)}>{children}{required && <span className="text-red-500">*</span>}</Label>;
 }
 
 function FormErrorMessage({ message }: { message?: string }) {
