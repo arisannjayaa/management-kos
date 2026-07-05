@@ -12,8 +12,14 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('room_type_pricing_tiers', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary(); // UUID Primary Key
+            $table->string('name', 100); // Cth: "Tarif 1 Orang", "Tarif 2 Orang", "Harian"
+            $table->decimal('price', 12, 2)->default(0); // Nominal harga untuk tier ini
             $table->timestamps();
+            $table->softDeletes();
+
+            // Hubungan relasi ke tabel induk (room_types)
+            $table->foreignUuid('room_type_id')->references('id')->on('room_types')->cascadeOnDelete();
         });
     }
 

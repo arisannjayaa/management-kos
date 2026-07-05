@@ -30,6 +30,7 @@ type Props = {
      * @default 'bg-red-600 text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800'
      */
     confirmClassName?: string;
+    isDeleting?: boolean;
 };
 
 export default function DeleteConfirmDialog({
@@ -41,6 +42,7 @@ export default function DeleteConfirmDialog({
     onCancel,
     confirmLabel = 'Ya, Hapus Data',
     confirmClassName = 'bg-red-600 text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800',
+    isDeleting = false,
 }: Props) {
     return (
         <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -52,14 +54,18 @@ export default function DeleteConfirmDialog({
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                    <AlertDialogCancel onClick={onCancel}>
+                    <AlertDialogCancel onClick={onCancel} disabled={isDeleting}>
                         Batal
                     </AlertDialogCancel>
                     <AlertDialogAction
-                        onClick={onConfirm}
+                        onClick={(e) => {
+                            e.preventDefault(); // Mencegah dialog tertutup otomatis jika perlu
+                            onConfirm();
+                        }}
                         className={confirmClassName}
+                        disabled={isDeleting} // Tombol disable saat loading
                     >
-                        {confirmLabel}
+                        {isDeleting ? 'Memproses...' : confirmLabel}
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>

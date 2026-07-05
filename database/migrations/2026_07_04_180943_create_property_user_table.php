@@ -12,8 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('property_user', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary(); // UUID Primary Key
             $table->timestamps();
+
+            // Relasi Foreign Keys
+            $table->foreignUuid('property_id')->references('id')->on('properties')->cascadeOnDelete();
+            $table->foreignUuid('user_id')->references('id')->on('users')->cascadeOnDelete();
         });
     }
 

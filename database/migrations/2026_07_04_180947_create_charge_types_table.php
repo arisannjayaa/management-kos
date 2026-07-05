@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('charge_types', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->foreignUuid('property_id');
+            $table->foreignUuid('property_id')->constrained('properties');
             $table->string('name', 100);
             $table->enum('billing_method', ['flat', 'metered', 'per_occupant']);
             $table->decimal('default_amount', 12, 2)->nullable();

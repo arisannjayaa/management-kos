@@ -12,8 +12,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('rooms', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary(); // UUID Primary Key
+            $table->string('room_number', 50); // Cth: "A1", "B10"
+            $table->string('status', 30)->default('available'); // available, occupied, maintenance
             $table->timestamps();
+            $table->softDeletes();
+
+            // Relasi Foreign Keys
+            $table->foreignUuid('property_id')->references('id')->on('properties')->cascadeOnDelete();
+            $table->foreignUuid('room_type_id')->references('id')->on('room_types')->cascadeOnDelete();
         });
     }
 
