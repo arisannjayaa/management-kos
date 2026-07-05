@@ -31,6 +31,7 @@ class OccupancyServiceImplement extends ServiceApi implements OccupancyService
      * because used in extends service class
      */
     protected OccupancyRepository $mainRepository;
+
     protected RoomRepository $roomRepository;
 
     public function __construct(OccupancyRepository $mainRepository, RoomRepository $roomRepository)
@@ -78,6 +79,20 @@ class OccupancyServiceImplement extends ServiceApi implements OccupancyService
 
             // 3. Simpan induk data log kontrak via repository
             $occupancy = $this->mainRepository->create($data);
+
+            // 🌟 LANGKAH 3.5: SUNTIKKAN LOGIKA BIAYA TAMBAHAN DI SINI
+            // Mengingat $data dari Controller sudah membawa array 'charges' hasil validasi request
+            if (! empty($data['charges']) && is_array($data['charges'])) {
+                foreach ($data['charges'] as $charge) {
+                    if (! empty($charge['charge_type_id'])) {
+                        // Memanfaatkan relasi hasMany yang telah kita pasang di model Occupancy
+                        $occupancy->occupancyCharges()->create([
+                            'charge_type_id' => $charge['charge_type_id'],
+                            'amount' => $charge['amount'] ?? null, // Null = ikut harga master
+                        ]);
+                    }
+                }
+            }
 
             // 4. AUTOMATION: Balik status fisik unit kamar menjadi terisi ('occupied')
             $room->update(['status' => 'occupied']);

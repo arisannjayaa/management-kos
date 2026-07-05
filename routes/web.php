@@ -6,6 +6,7 @@ use App\Http\Controllers\ChargeTypeController;
 use App\Http\Controllers\ComplaintController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\OccupancyController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PropertyController;
@@ -108,14 +109,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // KEUANGAN
     // ==========================================
 
-    // Billings / Invoices
-    Route::prefix('billings')->name('billings.')->group(function () {
-        Route::get('/', [BillingController::class, 'index'])->middleware('permission:invoice.view')->name('index');
-        Route::post('/', [BillingController::class, 'create'])->middleware('permission:invoice.generate-manual')->name('create');
-        Route::put('/update/{id}', [BillingController::class, 'update'])->middleware('permission:invoice.generate-manual')->name('update');
-        Route::post('/input-meter/{id}', [BillingController::class, 'inputMeter'])->middleware('permission:meter_reading.create')->name('input-meter');
-        Route::delete('/delete/{id}', [BillingController::class, 'delete'])->middleware('permission:invoice.void')->name('delete');
-        Route::post('/{id}/send-reminder', [BillingController::class, 'sendWaReminder'])->middleware('permission:invoice.view')->name('send-reminder');
+    Route::prefix('invoices')->name('invoices.')->group(function () {
+        Route::get('/', [InvoiceController::class, 'index'])->middleware('permission:invoice.view')->name('index');
+        Route::get('/details/{id}', [InvoiceController::class, 'details'])->middleware('permission:invoice.view')->name('details');
+        Route::post('/pay/{id}', [InvoiceController::class, 'pay'])->middleware('permission:invoice.pay')->name('pay');
+        Route::post('/void/{id}', [InvoiceController::class, 'void'])->middleware('permission:invoice.void')->name('void');
     });
 
     // Payments
@@ -165,9 +163,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Charge Types (Master Data Biaya)
     Route::prefix('charge-types')->name('charge-types.')->group(function () {
         Route::get('/', [ChargeTypeController::class, 'index'])->middleware('permission:charge_type.view')->name('index');
-        Route::post('/', [ChargeTypeController::class, 'create'])->middleware('permission:charge_type.create')->name('create');
-        Route::put('/update/{id}', [ChargeTypeController::class, 'update'])->middleware('permission:charge_type.update')->name('update');
-        Route::delete('/delete/{id}', [ChargeTypeController::class, 'delete'])->middleware('permission:charge_type.delete')->name('delete');
+        Route::post('/', [ChargeTypeController::class, 'store'])->middleware('permission:charge_type.create')->name('store');
+        Route::put('/{id}', [ChargeTypeController::class, 'update'])->middleware('permission:charge_type.edit')->name('update');
+        Route::delete('/{id}', [ChargeTypeController::class, 'destroy'])->middleware('permission:charge_type.delete')->name('destroy');
     });
 
     // Users (Staff & Owners)

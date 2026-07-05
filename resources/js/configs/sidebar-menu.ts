@@ -29,7 +29,7 @@ import roomTypeRoute from '@/routes/room-types'; // 🌟 Tambahan Rute Tipe Kama
 import roomRoute from '@/routes/rooms';
 import tenantRoute from '@/routes/tenants';
 import occupancyRoute from '@/routes/occupancies';
-import billingRoute from '@/routes/billings';
+import invoiceRoute from '@/routes/invoices';
 import paymentRoute from '@/routes/payments';
 import expenseRoute from '@/routes/expenses';
 import complaintRoute from '@/routes/complaints';
@@ -98,10 +98,10 @@ export const sidebarMenus: NavGroup[] = [
         items: [
             {
                 title: 'Tagihan / Billing',
-                href: billingRoute.index(),
+                href: invoiceRoute.index(),
                 icon: FileText,
                 permission: 'invoice.view',
-                activePatterns: ['/billings'],
+                activePatterns: ['/invoices'],
             },
             {
                 title: 'Pembayaran',
