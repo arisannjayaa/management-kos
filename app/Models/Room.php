@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use LaravelEasyRepository\Traits\GenUid;
 
 class Room extends Model
 {
-    use GenUid, SoftDeletes;
+    use GenUid, HasFactory, SoftDeletes;
 
     protected $keyType = 'string';
     public $incrementing = false;
@@ -17,7 +18,7 @@ class Room extends Model
         'property_id',
         'room_type_id',
         'room_number',
-        'status'
+        'status',
     ];
 
     /**

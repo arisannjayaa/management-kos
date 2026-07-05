@@ -3,28 +3,31 @@
 namespace App\DataTables;
 
 use App\Helpers\Helper;
-use App\Models\Room;
+use App\Models\Occupancy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
-class RoomDataTable extends BaseDataTable
+class OccupancyDataTable extends BaseDataTable
 {
     public function query(): Builder
     {
-        // Scope data kamar: Harus bernaung di bawah properti milik owner yang login
-        return Room::with(['property', 'roomType.pricingTiers'])
+        // Ambil data okupansi berjalan di bawah properti gedung milik owner yang login
+        return Occupancy::with(['property', 'room', 'roomType', 'tenant', 'pricingTier'])
             ->whereHas('property', function ($q) {
                 $q->where('owner_id', auth()->id());
             })
-            ->orderBy('room_number', 'desc');
+            ->orderBy('status', 'asc')
+            ->orderBy('created_at', 'desc');
     }
 
     public function search(Builder $query, string $keyword): void
     {
         $query->where(function ($q) use ($keyword) {
-            $q->where('room_number', 'like', "%{$keyword}%")
-                ->orWhereHas('roomType', function ($subQ) use ($keyword) {
-                    $subQ->where('name', 'like', "%{$keyword}%");
+            $q->whereHas('tenant', function ($subQ) use ($keyword) {
+                $subQ->where('name', 'like', "%{$keyword}%");
+            })
+                ->orWhereHas('room', function ($subQ) use ($keyword) {
+                    $subQ->where('room_number', 'like', "%{$keyword}%");
                 })
                 ->orWhereHas('property', function ($subQ) use ($keyword) {
                     $subQ->where('name', 'like', "%{$keyword}%");
@@ -55,31 +58,25 @@ class RoomDataTable extends BaseDataTable
             $query->where('status', $request->input('status'));
         }
 
-        // Resolusi filter ber-UUID Enkripsi
         if ($request->filled('property_id') && $request->input('property_id') !== 'all') {
             $propId = $request->input('property_id');
             $query->where('property_id', Helper::decrypt($propId) ?? $propId);
-        }
-
-        if ($request->filled('room_type_id') && $request->input('room_type_id') !== 'all') {
-            $typeId = $request->input('room_type_id');
-            $query->where('room_type_id', Helper::decrypt($typeId) ?? $typeId);
         }
     }
 
     public function sort(Builder $query, string $field, string $direction): void
     {
-        $allowedSorts = ['room_number', 'status', 'created_at'];
+        $allowedSorts = ['start_date', 'billing_day', 'status', 'created_at'];
 
-        if ($field === 'room_type') {
+        if ($field === 'room_number') {
             $query->orderBy(
-                \App\Models\RoomType::select('name')->whereColumn('room_types.id', 'rooms.room_type_id'),
+                \App\Models\Room::select('room_number')->whereColumn('rooms.id', 'occupancies.room_id'),
                 $direction
             );
         } elseif (in_array($field, $allowedSorts)) {
             $query->orderBy($field, $direction);
         } else {
-            $query->orderBy('room_number', 'asc');
+            $query->orderBy('created_at', 'desc');
         }
     }
 
@@ -87,27 +84,47 @@ class RoomDataTable extends BaseDataTable
     {
         return [
             'id' => Helper::encrypt($row->id),
-            'room_number' => $row->room_number,
-            'status' => $row->status, // available, occupied, maintenance
+            'property_id' => Helper::encrypt($row->property_id),
+            'room_id' => Helper::encrypt($row->room_id),
+            'room_type_id' => Helper::encrypt($row->room_type_id),
+            'tenant_id' => Helper::encrypt($row->tenant_id),
+            'room_type_pricing_tier_id' => $row->room_type_pricing_tier_id ? Helper::encrypt($row->room_type_pricing_tier_id) : null,
+
+            'start_date' => $row->start_date ? $row->start_date->format('Y-m-d') : null,
+            'end_date' => $row->end_date ? $row->end_date->format('Y-m-d') : null,
+            'billing_day' => (int) $row->billing_day,
+            'price' => (float) $row->price,
+            'deposit_amount' => (float) $row->deposit_amount,
+            'status' => $row->status, // active, checked_out
 
             'property' => $row->property ? [
                 'id' => Helper::encrypt($row->property->id),
                 'name' => $row->property->name,
             ] : null,
 
+            'room' => $row->room ? [
+                'id' => Helper::encrypt($row->room->id),
+                'room_number' => $row->room->room_number,
+            ] : null,
+
             'room_type' => $row->roomType ? [
                 'id' => Helper::encrypt($row->roomType->id),
                 'name' => $row->roomType->name,
-                'base_price' => (float) $row->roomType->base_price,
-                'pricing_tiers' => $row->roomType->pricingTiers->map(fn($tier) => [
-                    'id' => Helper::encrypt($tier->id),
-                    'name' => $tier->name,
-                    'price' => (float) $tier->price,
-                ])->toArray(),
+            ] : null,
+
+            'tenant' => $row->tenant ? [
+                'id' => Helper::encrypt($row->tenant->id),
+                'name' => $row->tenant->name,
+                'phone' => $row->tenant->phone,
+            ] : null,
+
+            'pricing_tier' => $row->pricingTier ? [
+                'id' => Helper::encrypt($row->pricingTier->id),
+                'name' => $row->pricingTier->name,
+                'price' => (float) $row->pricingTier->price,
             ] : null,
 
             'created_at' => $row->created_at ? $row->created_at->format('Y-m-d H:i:s') : null,
-            'deleted_at' => $row->deleted_at ? $row->deleted_at->format('Y-m-d H:i:s') : null,
         ];
     }
 }

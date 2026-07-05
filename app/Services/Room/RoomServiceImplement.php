@@ -232,6 +232,33 @@ class RoomServiceImplement extends ServiceApi implements RoomService
         }
     }
 
+    public function update($id, array $data)
+    {
+        DB::beginTransaction();
+        try {
+
+            $allowedStatuses = ['available', 'occupied', 'maintenance'];
+            if (! in_array($data['status'], $allowedStatuses)) {
+                return $this->setStatus(false)
+                    ->setCode(422)
+                    ->setMessage('Status kamar tidak dikenali oleh sistem.');
+            }
+
+            $this->mainRepository->update($id, $data);
+
+            DB::commit();
+
+            return $this->setStatus(true)
+                ->setCode(200)
+                ->setMessage('Kamar berhasil diperbarui!');
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error($e);
+
+            return $this->exceptionResponse($e);
+        }
+    }
+
     /**
      * Mengubah status operasional hunian unit kamar (available, occupied, maintenance)
      */

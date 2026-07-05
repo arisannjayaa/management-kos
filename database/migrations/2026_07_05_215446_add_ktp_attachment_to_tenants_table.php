@@ -6,22 +6,17 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-        Schema::create('occupancies', function (Blueprint $table) {
-            $table->id();
-            $table->timestamps();
+        Schema::table('tenants', function (Blueprint $table) {
+            $table->string('ktp_attachment')->nullable()->after('ktp_number');
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        Schema::dropIfExists('occupancies');
+        Schema::table('tenants', function (Blueprint $table) {
+            $table->dropColumn('ktp_attachment');
+        });
     }
 };
