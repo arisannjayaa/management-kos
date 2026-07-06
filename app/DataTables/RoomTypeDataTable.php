@@ -3,7 +3,9 @@
 namespace App\DataTables;
 
 use App\Helpers\Helper;
+use App\Models\Property;
 use App\Models\RoomType;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
@@ -11,13 +13,14 @@ class RoomTypeDataTable extends BaseDataTable
 {
     public function query(): Builder
     {
-        // Hanya menampilkan tipe kamar dari gedung kos milik owner yang sedang login
-        return RoomType::with(['property', 'pricingTiers'])
-            ->withCount('rooms')
-            ->whereHas('property', function ($q) {
-                $q->where('owner_id', auth()->id());
-            })
-            ->orderBy('created_at', 'desc');
+        $ownerId = auth()->user()->hasRole('staff')
+            ? User::whereHas('roles', fn ($q) => $q->where('name', 'owner'))->first()?->id
+            : auth()->id();
+
+        return RoomType::with('property')
+            ->whereHas('property', function ($q) use ($ownerId) {
+                $q->where('owner_id', $ownerId);
+            });
     }
 
     public function search(Builder $query, string $keyword): void
@@ -63,7 +66,7 @@ class RoomTypeDataTable extends BaseDataTable
 
         if ($field === 'property') {
             $query->orderBy(
-                \App\Models\Property::select('name')->whereColumn('properties.id', 'room_types.property_id'),
+                Property::select('name')->whereColumn('properties.id', 'room_types.property_id'),
                 $direction
             );
         } elseif (in_array($field, $allowedSorts)) {

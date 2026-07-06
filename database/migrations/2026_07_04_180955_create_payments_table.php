@@ -13,24 +13,17 @@ return new class extends Migration
     {
         Schema::create('payments', function (Blueprint $table) {
             $table->uuid('id')->primary();
-
             $table->foreignUuid('invoice_id')->constrained('invoices')->onDelete('cascade');
-
-            // Mencatat siapa staff/owner yang menerima dan memvalidasi pembayaran ini
-            $table->foreignUuid('receiver_id')->constrained('users')->onDelete('cascade');
-
-            $table->string('payment_number', 50)->unique(); // Format Cth: PAY/2026/07/0001
-            $table->bigInteger('amount_paid');
+            $table->foreignUuid('receiver_id')->constrained('users'); // Staff/Owner penerima dana
+            $table->string('payment_number')->unique(); // Format kuitansi: PAY/YYYY/MM/0001
+            $table->decimal('amount_paid', 14, 2); // Nominal setoran masukan
             $table->dateTime('payment_date');
-
-            // Metode Pembayaran & Bukti Berkas
-            $table->enum('payment_method', ['cash', 'transfer'])->default('cash');
-            $table->string('proof_attachment')->nullable(); // Lokasi path struk transfer (Nanti diamankan SecureFile)
-
+            $table->string('payment_method')->default('cash'); // cash, transfer
+            $table->string('proof_attachment')->nullable(); // Path struk transfer biner
             $table->text('notes')->nullable();
 
             $table->timestamps();
-            $table->softDeletes();
+            $table->softDeletes(); // Dukungan keranjang sampah kuitansi
         });
     }
 

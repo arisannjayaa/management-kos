@@ -9,6 +9,7 @@ use App\Http\Resources\InvoiceItemResource;
 use App\Http\Resources\PaymentResource;
 use App\Http\Resources\PropertyResource;
 use App\Models\Invoice;
+use App\Models\User;
 use App\Services\Invoice\InvoiceService;
 use App\Services\Property\PropertyService;
 use Illuminate\Http\Request;
@@ -35,8 +36,12 @@ class InvoiceController extends Controller
             abort(403, 'Akses Dibatasi|Anda tidak memiliki izin melihat pembukuan keuangan.');
         }
 
-        // Ambil master properti milik owner untuk keperluan filter dropdown sidebar
-        $properties = $this->propertyService->findAllByOwnerId(auth()->id())->getResult();
+        // 🌟 SINKRONISASI CONTEXT OWNER UNTUK MASTER DROPDOWN Gedung
+        $ownerId = auth()->user()->hasRole('staff')
+            ? User::whereHas('roles', fn ($q) => $q->where('name', 'owner'))->first()?->id
+            : auth()->id();
+
+        $properties = $this->propertyService->findAllByOwnerId($ownerId)->getResult();
 
         $dataTable = new InvoiceDataTable;
 
@@ -51,9 +56,13 @@ class InvoiceController extends Controller
      */
     public function details($id)
     {
+        $ownerId = auth()->user()->hasRole('staff')
+            ? \App\Models\User::whereHas('roles', fn($q) => $q->where('name', 'owner'))->first()?->id
+            : auth()->id();
+
         $invoice = Invoice::with(['items', 'payments.receiver'])
-            ->whereHas('property', function ($q) {
-                $q->where('owner_id', auth()->id()); // Proteksi Scoping data Owner
+            ->whereHas('property', function ($q) use ($ownerId) {
+                $q->where('owner_id', $ownerId); // Proteksi Scoping data Owner & Staff terafiliasi
             })
             ->findOrFail(Helper::decrypt($id));
 
@@ -61,7 +70,7 @@ class InvoiceController extends Controller
             'success' => true,
             'invoice_number' => $invoice->invoice_number,
 
-            // 🌟 Transformasi data otomatis lewat Resource Class
+            // Transformasi data otomatis lewat Resource Class
             'items' => InvoiceItemResource::collection($invoice->items),
             'payments' => PaymentResource::collection($invoice->payments),
         ]);

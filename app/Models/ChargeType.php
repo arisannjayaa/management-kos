@@ -43,4 +43,9 @@ class ChargeType extends Model
     {
         return $this->hasMany(OccupancyCharge::class, 'charge_type_id');
     }
+
+    public function meterReadings(): HasMany
+    {
+        return $this->hasMany(ChargeMeterReading::class);
+    }
 }

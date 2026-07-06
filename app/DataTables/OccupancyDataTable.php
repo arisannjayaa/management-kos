@@ -4,6 +4,8 @@ namespace App\DataTables;
 
 use App\Helpers\Helper;
 use App\Models\Occupancy;
+use App\Models\Room;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
@@ -11,13 +13,14 @@ class OccupancyDataTable extends BaseDataTable
 {
     public function query(): Builder
     {
-        // Ambil data okupansi berjalan di bawah properti gedung milik owner yang login
-        return Occupancy::with(['property', 'room', 'roomType', 'tenant', 'pricingTier'])
-            ->whereHas('property', function ($q) {
-                $q->where('owner_id', auth()->id());
-            })
-            ->orderBy('status', 'asc')
-            ->orderBy('created_at', 'desc');
+        $ownerId = auth()->user()->hasRole('staff')
+        ? User::whereHas('roles', fn ($q) => $q->where('name', 'owner'))->first()?->id
+        : auth()->id();
+
+        return Occupancy::with(['property', 'room', 'tenant'])
+            ->whereHas('property', function ($q) use ($ownerId) {
+                $q->where('owner_id', $ownerId);
+            });
     }
 
     public function search(Builder $query, string $keyword): void
@@ -70,7 +73,7 @@ class OccupancyDataTable extends BaseDataTable
 
         if ($field === 'room_number') {
             $query->orderBy(
-                \App\Models\Room::select('room_number')->whereColumn('rooms.id', 'occupancies.room_id'),
+                Room::select('room_number')->whereColumn('rooms.id', 'occupancies.room_id'),
                 $direction
             );
         } elseif (in_array($field, $allowedSorts)) {
