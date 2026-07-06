@@ -1,7 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuditLogController;
-use App\Http\Controllers\BillingController;
+use App\Http\Controllers\ChargeMeterReadingController;
 use App\Http\Controllers\ChargeTypeController;
 use App\Http\Controllers\ComplaintController;
 use App\Http\Controllers\DashboardController;
@@ -118,9 +118,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Payments
     Route::prefix('payments')->name('payments.')->group(function () {
+        // Pembersihan massal di atas wildcard parameter
+        Route::delete('/bulk-destroy', [PaymentController::class, 'bulkDestroy'])->middleware('permission:payment.delete')->name('bulk-destroy');
+
         Route::get('/', [PaymentController::class, 'index'])->middleware('permission:payment.view')->name('index');
-        Route::post('/', [PaymentController::class, 'create'])->middleware('permission:payment.create')->name('create');
-        Route::delete('/delete/{id}', [PaymentController::class, 'delete'])->middleware('permission:payment.delete')->name('delete');
+        Route::delete('/delete/{id}', [PaymentController::class, 'destroy'])->middleware('permission:payment.delete')->name('destroy');
     });
 
     // Expenses
@@ -175,6 +177,21 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/', [UserController::class, 'create'])->middleware('permission:staff.manage')->name('create');
         Route::put('/update/{id}', [UserController::class, 'update'])->middleware('permission:staff.manage')->name('update');
         Route::delete('/delete/{id}', [UserController::class, 'delete'])->middleware('permission:staff.manage')->name('delete');
+    });
+
+    Route::prefix('meter-readings')->name('meter-readings.')->group(function () {
+        // Bulk Actions
+        Route::delete('/bulk-destroy', [ChargeMeterReadingController::class, 'bulkDestroy'])->middleware('permission:meter_reading.delete')->name('bulk-destroy');
+        Route::delete('/bulk-force-delete', [ChargeMeterReadingController::class, 'bulkForceDelete'])->middleware('permission:meter_reading.delete')->name('bulk-force-delete');
+        Route::post('/bulk-restore', [ChargeMeterReadingController::class, 'bulkRestore'])->middleware('permission:meter_reading.update')->name('bulk-restore');
+
+        Route::get('/', [ChargeMeterReadingController::class, 'index'])->middleware('permission:meter_reading.view')->name('index');
+        Route::post('/', [ChargeMeterReadingController::class, 'store'])->middleware('permission:meter_reading.create')->name('store');
+        Route::get('/previous', [ChargeMeterReadingController::class, 'getPreviousReading'])->name('previous');
+
+        Route::delete('/{id}', [ChargeMeterReadingController::class, 'destroy'])->middleware('permission:meter_reading.delete')->name('destroy');
+        Route::post('/restore/{id}', [ChargeMeterReadingController::class, 'restore'])->middleware('permission:meter_reading.update')->name('restore');
+        Route::delete('/force-delete/{id}', [ChargeMeterReadingController::class, 'forceDelete'])->middleware('permission:meter_reading.delete')->name('force-delete');
     });
 
     // ==========================================

@@ -2,6 +2,7 @@
 
 namespace App\Services\Invoice;
 
+use App\Models\ChargeMeterReading;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\Occupancy;
@@ -58,12 +59,11 @@ class InvoiceServiceImplement extends ServiceApi implements InvoiceService
         foreach ($activeOccupancies as $occupancy) {
             DB::beginTransaction();
             try {
-                // Tentukan jangkauan periode sewa bulan ini (Cth: 6 Juli s/d 6 Agustus)
                 $periodStart = Carbon::create($today->year, $today->month, $occupancy->billing_day);
                 $periodEnd = $periodStart->copy()->addMonth()->subDay();
-                $dueDate = $periodStart->copy()->addDays(3); // Toleransi bayar 3 hari semenjak tagihan terbit
+                $dueDate = $periodStart->copy()->addDays(3);
 
-                // 2. ANTI-DUPLICATE GUARD: Cegah penerbitan ulang jika invoice untuk periode ini sudah pernah dibuat
+                // 2. ANTI-DUPLICATE GUARD
                 $isExist = Invoice::where('occupancy_id', $occupancy->id)
                     ->where('period_start', $periodStart->format('Y-m-d'))
                     ->exists();
@@ -75,13 +75,13 @@ class InvoiceServiceImplement extends ServiceApi implements InvoiceService
                     continue;
                 }
 
-                // 3. GENERATE NOMOR INVOICE UNIK (Format: INV/Tahun/Bulan/Sequence)
+                // 3. GENERATE NOMOR INVOICE UNIK
                 $invoiceSequence = Invoice::whereYear('created_at', $today->year)
                     ->whereMonth('created_at', $today->month)
                     ->count() + 1;
                 $invoiceNumber = 'INV/'.$today->format('Y/m').'/'.str_pad($invoiceSequence, 4, '0', STR_PAD_LEFT);
 
-                // 4. BUAT INDUK DATA INVOICE (Simpan sementara dengan amount = 0, nanti diupdate setelah item dihitung)
+                // 4. BUAT INDUK DATA INVOICE
                 $invoice = Invoice::create([
                     'property_id' => $occupancy->property_id,
                     'room_id' => $occupancy->room_id,
@@ -110,9 +110,13 @@ class InvoiceServiceImplement extends ServiceApi implements InvoiceService
                 ]);
                 $totalGrossAmount += $occupancy->price;
 
-                // 6. ITEMISASI 2: Masukkan Biaya Tambahan Fleksibel (Dari tabel occupancy_charges hasil sinkronisasi migrasi Anda)
+                // 6. ITEMISASI 2: Masukkan Biaya Tambahan Fleksibel Terdaftar (WiFi, Sampah bertipe Flat)
                 foreach ($occupancy->occupancyCharges as $occCharge) {
-                    // 🌟 SEKARANG MENGIKUTI: default_amount dari skema aslimu
+                    // Hanya tarik iuran bulanan yang tipenya bukan 'metered' di looping ini
+                    if ($occCharge->chargeType->billing_method === 'metered') {
+                        continue;
+                    }
+
                     $chargePrice = $occCharge->amount ?? $occCharge->chargeType->default_amount ?? 0;
 
                     InvoiceItem::create([
@@ -125,10 +129,33 @@ class InvoiceServiceImplement extends ServiceApi implements InvoiceService
                     $totalGrossAmount += $chargePrice;
                 }
 
-                // 7. RE-UPDATE TOTAL AGREGAT FINANSIAL PADA INDUK INVOICE
+                // 🌟 7. ITEMISASI 3 (BARU - FASE 4 SYNC): Tarik biaya variabel hasil catat meteran keliling
+                $uninvoicedReadings = ChargeMeterReading::with('chargeType')
+                    ->where('occupancy_id', $occupancy->id)
+                    ->whereNull('invoice_id') // Mencari data meteran yang belum pernah ditagih
+                    ->get();
+
+                foreach ($uninvoicedReadings as $reading) {
+                    $unitLabel = $reading->chargeType->unit_label ?? 'Unit';
+
+                    InvoiceItem::create([
+                        'invoice_id' => $invoice->id,
+                        // Info Transparan: Listrik (Kamar Meteran) [135.50 kWh]
+                        'name' => ($reading->chargeType->name ?? 'Biaya Utilitas')." [{$reading->usage} {$unitLabel}]",
+                        'qty' => 1,
+                        'price' => $reading->amount,
+                        'subtotal' => $reading->amount,
+                    ]);
+                    $totalGrossAmount += $reading->amount;
+
+                    // 🔒 KUNCI REKAMAN METERAN: Amankan ID Invoice biar bulan depan tidak tertagih double!
+                    $reading->update(['invoice_id' => $invoice->id]);
+                }
+
+                // 8. RE-UPDATE TOTAL AGREGAT FINANSIAL PADA INDUK INVOICE
                 $invoice->update([
                     'amount' => $totalGrossAmount,
-                    'final_amount' => $totalGrossAmount, // Masih tanpa potongan diskon bawaan
+                    'final_amount' => $totalGrossAmount,
                 ]);
 
                 DB::commit();
@@ -137,7 +164,6 @@ class InvoiceServiceImplement extends ServiceApi implements InvoiceService
             } catch (Exception $e) {
                 DB::rollBack();
 
-                // Tetap lanjutkan perulangan kontrak lain meskipun salah satu kontrak mengalami kegagalan
                 continue;
             }
         }
@@ -151,17 +177,13 @@ class InvoiceServiceImplement extends ServiceApi implements InvoiceService
 
     /**
      * Memproses Catatan Pembayaran Masuk (Cicilan / Pelunasan)
-     *
-     * * @param string $invoiceId
      */
     public function recordPayment($invoiceId, array $paymentData): mixed
     {
         DB::beginTransaction();
         try {
-            // 1. Ambil data induk invoice yang dituju
             $invoice = Invoice::findOrFail($invoiceId);
 
-            // Validasi: Jika invoice sudah lunas atau dibatalkan, tolak pembayaran baru
             if (in_array($invoice->status, ['paid', 'void'])) {
                 return $this->setStatus(false)
                     ->setCode(422)
@@ -170,35 +192,30 @@ class InvoiceServiceImplement extends ServiceApi implements InvoiceService
 
             $today = now();
 
-            // 2. GENERATE NOMOR TANDA TERIMA / KUITANSI (Format: PAY/Tahun/Bulan/Sequence)
             $paymentSequence = Payment::whereYear('created_at', $today->year)
                 ->whereMonth('created_at', $today->month)
                 ->count() + 1;
             $paymentNumber = 'PAY/'.$today->format('Y/m').'/'.str_pad($paymentSequence, 4, '0', STR_PAD_LEFT);
 
-            // 3. AMANKAN PAYLOAD LOG PEMBAYARAN MASUK
             $payment = Payment::create([
                 'invoice_id' => $invoice->id,
-                'receiver_id' => auth()->id(), // Mencatat ID staff/owner yang sedang login sebagai penerima
+                'receiver_id' => auth()->id(),
                 'payment_number' => $paymentNumber,
                 'amount_paid' => $paymentData['amount_paid'],
                 'payment_date' => $paymentData['payment_date'] ?? $today,
                 'payment_method' => $paymentData['payment_method'] ?? 'cash',
-                'proof_attachment' => $paymentData['proof_attachment'] ?? null, // Path file upload kuitansi/struk jika ada
+                'proof_attachment' => $paymentData['proof_attachment'] ?? null,
                 'notes' => $paymentData['notes'] ?? null,
             ]);
 
-            // 4. KALKULASI AKUMULASI DANA YANG SUDAH MASUK
             $totalPaidNow = $invoice->paid_amount + $paymentData['amount_paid'];
 
-            // 5. AUTOMATION STATE: Tentukan status invoice baru secara dinamis
             if ($totalPaidNow >= $invoice->final_amount) {
-                $newStatus = 'paid'; // Lunas
+                $newStatus = 'paid';
             } else {
-                $newStatus = 'partially_paid'; // Dicicil / Belum Lunas
+                $newStatus = 'partially_paid';
             }
 
-            // 6. UPDATE CACHED AGREGAT DI INDUK INVOICE
             $invoice->update([
                 'paid_amount' => $totalPaidNow,
                 'status' => $newStatus,
@@ -206,7 +223,8 @@ class InvoiceServiceImplement extends ServiceApi implements InvoiceService
 
             DB::commit();
 
-            $formattedAmount = 'Rp '.number_録_format($paymentData['amount_paid'], 0, ',', '.');
+            // 🌟 FIXED TYPO JEPANG: number_format sudah bersih kembali
+            $formattedAmount = 'Rp '.number_format($paymentData['amount_paid'], 0, ',', '.');
             $msg = $newStatus === 'paid'
                 ? "Pembayaran sebesar {$formattedAmount} berhasil diverifikasi. Invoice resmi LUNAS!"
                 : "Pembayaran cicilan sebesar {$formattedAmount} berhasil dicatat. Status tagihan kini: Dicicil.";

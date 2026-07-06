@@ -3,10 +3,11 @@
 import {
     LayoutDashboard,
     Building,
-    Layers, // 🌟 Tambahan Ikon untuk Tipe Kamar
+    Layers,
     BedDouble,
     Users,
     KeyRound,
+    Gauge, // 🌟 TAMBAHAN: Ikon Indikator Meteran Digital
     FileText,
     Banknote,
     ReceiptText,
@@ -25,10 +26,11 @@ import type { NavGroup } from '@/types';
 // Placeholder import rute - sesuaikan dengan struktur file/helper route Anda
 import dashboardController from '@/actions/App/Http/Controllers/DashboardController';
 import propertyRoute from '@/routes/properties';
-import roomTypeRoute from '@/routes/room-types'; // 🌟 Tambahan Rute Tipe Kamar
+import roomTypeRoute from '@/routes/room-types';
 import roomRoute from '@/routes/rooms';
 import tenantRoute from '@/routes/tenants';
 import occupancyRoute from '@/routes/occupancies';
+import meterReadingRoute from '@/routes/meter-readings'; // 🌟 TAMBAHAN: Rute Meteran Utilitas (Fase 4)
 import invoiceRoute from '@/routes/invoices';
 import paymentRoute from '@/routes/payments';
 import expenseRoute from '@/routes/expenses';
@@ -64,10 +66,10 @@ export const sidebarMenus: NavGroup[] = [
                 activePatterns: ['/properties'],
             },
             {
-                title: 'Tipe Kamar', // 🌟 Modul Baru di Fase 1
+                title: 'Tipe Kamar',
                 href: roomTypeRoute.index(),
                 icon: Layers,
-                permission: 'room.view', // Berbagi permission view dengan modul kamar
+                permission: 'room.view',
                 activePatterns: ['/room-types'],
             },
             {
@@ -90,6 +92,13 @@ export const sidebarMenus: NavGroup[] = [
                 icon: KeyRound,
                 permission: 'occupancy.view',
                 activePatterns: ['/occupancies'],
+            },
+            {
+                title: 'Meteran Utilitas', // 🌟 MODUL BARU: Penempatan Rapi Fase 4
+                href: meterReadingRoute.index(),
+                icon: Gauge,
+                permission: 'meter_reading.view',
+                activePatterns: ['/meter-readings'],
             },
         ],
     },

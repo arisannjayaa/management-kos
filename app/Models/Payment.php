@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -9,7 +10,7 @@ use LaravelEasyRepository\Traits\GenUid;
 
 class Payment extends Model
 {
-    use GenUid, SoftDeletes;
+    use GenUid, HasFactory, SoftDeletes;
 
     protected $fillable = [
         'invoice_id',
@@ -24,6 +25,7 @@ class Payment extends Model
 
     protected $casts = [
         'payment_date' => 'datetime',
+        'amount_paid' => 'float',
     ];
 
     public function invoice(): BelongsTo
@@ -31,9 +33,6 @@ class Payment extends Model
         return $this->belongsTo(Invoice::class);
     }
 
-    /**
-     * Mencatat Staff / Owner pengonfirmasi uang masuk
-     */
     public function receiver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'receiver_id');

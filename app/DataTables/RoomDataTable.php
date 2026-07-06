@@ -4,6 +4,8 @@ namespace App\DataTables;
 
 use App\Helpers\Helper;
 use App\Models\Room;
+use App\Models\RoomType;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
@@ -11,12 +13,14 @@ class RoomDataTable extends BaseDataTable
 {
     public function query(): Builder
     {
-        // Scope data kamar: Harus bernaung di bawah properti milik owner yang login
-        return Room::with(['property', 'roomType.pricingTiers'])
-            ->whereHas('property', function ($q) {
-                $q->where('owner_id', auth()->id());
-            })
-            ->orderBy('room_number', 'desc');
+        $ownerId = auth()->user()->hasRole('staff')
+            ? User::whereHas('roles', fn ($q) => $q->where('name', 'owner'))->first()?->id
+            : auth()->id();
+
+        return Room::with(['property', 'roomType'])
+            ->whereHas('property', function ($q) use ($ownerId) {
+                $q->where('owner_id', $ownerId);
+            });
     }
 
     public function search(Builder $query, string $keyword): void
@@ -73,7 +77,7 @@ class RoomDataTable extends BaseDataTable
 
         if ($field === 'room_type') {
             $query->orderBy(
-                \App\Models\RoomType::select('name')->whereColumn('room_types.id', 'rooms.room_type_id'),
+                RoomType::select('name')->whereColumn('room_types.id', 'rooms.room_type_id'),
                 $direction
             );
         } elseif (in_array($field, $allowedSorts)) {
@@ -99,7 +103,7 @@ class RoomDataTable extends BaseDataTable
                 'id' => Helper::encrypt($row->roomType->id),
                 'name' => $row->roomType->name,
                 'base_price' => (float) $row->roomType->base_price,
-                'pricing_tiers' => $row->roomType->pricingTiers->map(fn($tier) => [
+                'pricing_tiers' => $row->roomType->pricingTiers->map(fn ($tier) => [
                     'id' => Helper::encrypt($tier->id),
                     'name' => $tier->name,
                     'price' => (float) $tier->price,

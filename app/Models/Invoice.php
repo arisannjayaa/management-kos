@@ -71,4 +71,9 @@ class Invoice extends Model
     {
         return $this->hasMany(Payment::class);
     }
+
+    public function meterReadings(): HasMany
+    {
+        return $this->hasMany(ChargeMeterReading::class);
+    }
 }

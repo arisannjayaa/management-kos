@@ -4,6 +4,8 @@ namespace App\DataTables;
 
 use App\Helpers\Helper;
 use App\Models\Invoice;
+use App\Models\Room;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
@@ -11,10 +13,13 @@ class InvoiceDataTable extends BaseDataTable
 {
     public function query(): Builder
     {
-        // Scope data: Hanya memuat invoice dari properti milik Owner yang sedang login
+        $ownerId = auth()->user()->hasRole('staff')
+            ? User::whereHas('roles', fn ($q) => $q->where('name', 'owner'))->first()?->id
+            : auth()->id();
+
         return Invoice::with(['property', 'room', 'tenant', 'occupancy'])
-            ->whereHas('property', function ($q) {
-                $q->where('owner_id', auth()->id());
+            ->whereHas('property', function ($q) use ($ownerId) {
+                $q->where('owner_id', $ownerId);
             })
             ->orderBy('created_at', 'desc');
     }
@@ -69,7 +74,7 @@ class InvoiceDataTable extends BaseDataTable
 
         if ($field === 'room_number') {
             $query->orderBy(
-                \App\Models\Room::select('room_number')->whereColumn('rooms.id', 'invoices.room_id'),
+                Room::select('room_number')->whereColumn('rooms.id', 'invoices.room_id'),
                 $direction
             );
         } elseif (in_array($field, $allowedSorts)) {

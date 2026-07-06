@@ -64,4 +64,9 @@ class Occupancy extends Model
     {
         return $this->hasMany(OccupancyCharge::class, 'occupancy_id');
     }
+
+    public function meterReadings(): HasMany
+    {
+        return $this->hasMany(ChargeMeterReading::class);
+    }
 }

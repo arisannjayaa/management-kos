@@ -20,9 +20,9 @@ export interface Payment {
     amount_paid: number;
     payment_date: string;
     payment_method: PaymentMethod;
-    proof_attachment: string | null; // URL token dari SecureFile Controller
+    proof_attachment: string | null;
     notes: string | null;
-    receiver_name: string; // Nama staff/owner yang memvalidasi
+    receiver_name: string;
 }
 
 export interface Invoice {
@@ -36,31 +36,31 @@ export interface Invoice {
     period_end: string;
     due_date: string;
 
-    // Parameter Finansial Kasir
     amount: number;
     discount_amount: number;
     final_amount: number;
     paid_amount: number;
-    remaining_amount: number; // Sisa tunggakan cicilan
+    remaining_amount: number;
 
     status: InvoiceStatus;
     notes: string | null;
     created_at: string;
+    deleted_at?: string | null;
 
-    // Relasi Opsional (Eager Loaded)
-    property?: {
-        id: string;
-        name: string;
-    };
-    room?: {
-        id: string;
-        room_number: string;
-    };
-    tenant?: {
-        id: string;
-        name: string;
-        phone: string;
-    };
+    property?: { id: string; name: string };
+    room?: { id: string; room_number: string };
+    tenant?: { id: string; name: string; phone: string };
     items?: InvoiceItem[];
     payments?: Payment[];
+}
+
+// 🌟 TAMBAHAN: FILTER UNTUK DATATABLE BAR TAGIHAN
+export type InvoiceFilters = {
+    search?: string;
+    sort?: string;
+    direction?: 'asc' | 'desc';
+    per_page?: number;
+    trashed?: '1'; // 🌟 KUNCI KE LITERAL '1' AGAR SINKRON DENGAN HOOKS
+    status?: string | 'all';
+    property_id?: string | 'all';
 }
