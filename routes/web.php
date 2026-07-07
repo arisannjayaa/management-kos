@@ -165,11 +165,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/delete/{id}', [ComplaintController::class, 'delete'])->middleware('permission:complaint.delete')->name('delete');
     });
 
-    // Reports
     Route::prefix('reports')->name('reports.')->group(function () {
+        Route::get('/export-pdf', [ReportController::class, 'exportPdf'])->middleware('permission:report.view')->name('export-pdf');
         Route::get('/', [ReportController::class, 'index'])->middleware('permission:report.view')->name('index');
-        Route::get('/income', [ReportController::class, 'income'])->middleware('permission:report.view')->name('income');
-        Route::get('/profit-loss', [ReportController::class, 'profitLoss'])->middleware('permission:report.view')->name('profit-loss');
     });
 
     // ==========================================
