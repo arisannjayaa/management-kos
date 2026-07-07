@@ -41,6 +41,7 @@ import roleRoute from '@/routes/roles';
 import chargeTypeRoute from '@/routes/charge-types';
 import waGatewayRoute from '@/routes/wa-session';
 import auditLogRoute from '@/routes/audit-logs';
+import expenseCategoryRoute from '@/routes/expense_categories';
 
 export const sidebarMenus: NavGroup[] = [
     {
@@ -151,11 +152,18 @@ export const sidebarMenus: NavGroup[] = [
         title: 'Master Data & Pengguna',
         items: [
             {
-                title: 'Master Charge Types',
+                title: 'Master Tipe Tambahan Biaya',
                 href: chargeTypeRoute.index(),
                 icon: Tags,
                 permission: 'charge_type.view',
                 activePatterns: ['/charge-types'],
+            },
+            {
+                title: 'Master Kategori Pengeluaran',
+                href: expenseCategoryRoute.index(),
+                icon: Tags,
+                permission: 'expense_category.view',
+                activePatterns: ['/expense-categories'],
             },
             {
                 title: 'Kelola Staff',

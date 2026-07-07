@@ -4,6 +4,8 @@ namespace Database\Seeders;
 
 use App\Models\ChargeMeterReading;
 use App\Models\ChargeType;
+use App\Models\Expense;
+use App\Models\ExpenseCategory;
 use App\Models\Invoice;
 use App\Models\Occupancy;
 use App\Models\Payment;
@@ -63,6 +65,27 @@ class KosManagementSeeder extends Seeder
         $properties = Property::factory(2)->create(['owner_id' => $owner->id]);
         $tenants = Tenant::factory(12)->create(['owner_id' => $owner->id]);
         $tenantIndex = 0;
+
+        /*
+        |--------------------------------------------------------------------------
+        | MASTER GENERATOR: KATEGORI PENGELUARAN (BIAYA OPERASIONAL)
+        |--------------------------------------------------------------------------
+        */
+        $expenseCategories = [
+            ['name' => 'Listrik Induk (Fasum)', 'description' => 'Tagihan listrik PLN untuk area umum dan pompa air.'],
+            ['name' => 'Pemeliharaan Bangunan', 'description' => 'Perbaikan keran bocor, cat mengelupas, ganti lampu, dll.'],
+            ['name' => 'Iuran Banjar / Desa Adat', 'description' => 'Iuran bulanan adat, keamanan, dan kebersihan lingkungan desa.'],
+            ['name' => 'Gaji Staff', 'description' => 'Gaji bulanan penjaga kos dan petugas kebersihan.'],
+        ];
+
+        $createdExpenseCategories = [];
+        foreach ($expenseCategories as $categoryData) {
+            $createdExpenseCategories[] = ExpenseCategory::create([
+                'owner_id' => $owner->id,
+                'name' => $categoryData['name'],
+                'description' => $categoryData['description'],
+            ]);
+        }
 
         foreach ($properties as $property) {
             // Master beban khusus per gedung
@@ -172,6 +195,20 @@ class KosManagementSeeder extends Seeder
                 $maintenanceRoom = $rooms->where('status', 'available')->random();
                 $maintenanceRoom->update(['status' => 'maintenance']);
             }
+
+            // SIMULASI PENGELUARAN OPERASIONAL (EXPENSE) PER GEDUNG KOS
+            for ($i = 0; $i < rand(3, 6); $i++) {
+                $randomCategory = $createdExpenseCategories[array_rand($createdExpenseCategories)];
+
+                Expense::create([
+                    'property_id' => $property->id,
+                    'expense_category_id' => $randomCategory->id,
+                    'amount' => rand(2, 15) * 50000, // Nominal acak kelipatan 50.000
+                    'expense_date' => now()->subDays(rand(1, 30))->format('Y-m-d'),
+                    'notes' => 'Catatan operasional harian untuk '.strtolower($randomCategory->name),
+                    'receipt_attachment' => null,
+                ]);
+            }
         }
 
         /*
@@ -215,9 +252,7 @@ class KosManagementSeeder extends Seeder
                     'paid_amount' => $invoice->final_amount,
                     'status' => 'paid',
                 ]);
-            }
-
-            // Skenario 2: Kelompok Invoice Dicicil Sebagian (Status: Partially Paid via Transfer)
+            } // Skenario 2: Kelompok Invoice Dicicil Sebagian (Status: Partially Paid via Transfer)
             elseif ($index % 4 === 1) {
                 $payNumber = 'PAY/'.now()->format('Y/m').'/'.str_pad($paySequence++, 4, '0', STR_PAD_LEFT);
                 $halfAmount = round($invoice->final_amount / 2);
@@ -237,9 +272,7 @@ class KosManagementSeeder extends Seeder
                     'paid_amount' => $halfAmount,
                     'status' => 'partially_paid',
                 ]);
-            }
-
-            // Skenario 3: Kelompok Invoice Dibatalkan / Salah Input (Status: Void)
+            } // Skenario 3: Kelompok Invoice Dibatalkan / Salah Input (Status: Void)
             elseif ($index % 4 === 2) {
                 $invoice->update([
                     'status' => 'void',

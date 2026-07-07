@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use LaravelEasyRepository\Traits\GenUid;
 
@@ -12,6 +13,7 @@ class Property extends Model
     use GenUid, HasFactory, SoftDeletes;
 
     protected $keyType = 'string';
+
     public $incrementing = false;
 
     protected $fillable = [
@@ -24,7 +26,7 @@ class Property extends Model
         'billing_grace_period_days',
         'reminder_offsets_json',
         'wa_reminder_enabled',
-        'is_active'
+        'is_active',
     ];
 
     protected $casts = [
@@ -63,5 +65,10 @@ class Property extends Model
     public function staffs()
     {
         return $this->belongsToMany(User::class, 'property_user', 'property_id', 'user_id');
+    }
+
+    public function expenses(): HasMany
+    {
+        return $this->hasMany(Expense::class);
     }
 }
