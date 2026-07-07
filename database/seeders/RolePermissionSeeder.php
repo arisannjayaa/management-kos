@@ -44,6 +44,8 @@ class RolePermissionSeeder extends Seeder
 
             // 🌟 SYNC FASE 4: OPERASIONAL OPERASI METERAN DIGITAL UTUH
             'meter_reading.view', 'meter_reading.create', 'meter_reading.update', 'meter_reading.delete',
+            'expense_category.view', 'expense_category.create', 'expense_category.update', 'expense_category.delete',
+            'expense.view', 'expense.create', 'expense.update', 'expense.delete',
 
             // Keuangan Kasir (Invoice & Payment)
             'invoice.view', 'invoice.void', 'invoice.generate-manual', 'invoice.pay', // 🔒 FIXED: Duplikasi invoice.pay sudah dibersihkan

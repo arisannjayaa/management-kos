@@ -13,18 +13,14 @@ return new class extends Migration
     {
         Schema::create('expenses', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->string('property_id');
-            $table->string('expense_category_id');
-            $table->decimal('amount', 12, 2);
+            $table->foreignUuid('property_id')->constrained('properties')->onDelete('cascade');
+            $table->foreignUuid('expense_category_id')->constrained('expense_categories');
+            $table->decimal('amount', 14, 2);
             $table->date('expense_date');
-            $table->text('description')->nullable();
-            $table->string('proof_file_path')->nullable();
-            $table->boolean('is_recurring')->default(false);
-            $table->string('recorded_by');
+            $table->text('notes')->nullable();
+            $table->string('receipt_attachment')->nullable(); // Foto / Struk Nota fisik
             $table->timestamps();
             $table->softDeletes();
-
-            $table->index(['property_id', 'expense_date']);
         });
     }
 

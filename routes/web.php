@@ -5,6 +5,7 @@ use App\Http\Controllers\ChargeMeterReadingController;
 use App\Http\Controllers\ChargeTypeController;
 use App\Http\Controllers\ComplaintController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ExpenseCategoryController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\OccupancyController;
@@ -129,14 +130,27 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('expenses')->name('expenses.')->group(function () {
         Route::get('/', [ExpenseController::class, 'index'])->middleware('permission:expense.view')->name('index');
         Route::post('/', [ExpenseController::class, 'create'])->middleware('permission:expense.create')->name('create');
-        Route::put('/update/{id}', [ExpenseController::class, 'update'])->middleware('permission:expense.update')->name('update');
+        Route::post('/update/{id}', [ExpenseController::class, 'update'])->middleware('permission:expense.update')->name('update'); // Perhatikan: upload file di Inertia harus pakai POST
         Route::delete('/delete/{id}', [ExpenseController::class, 'delete'])->middleware('permission:expense.delete')->name('delete');
+        Route::post('/restore/{id}', [ExpenseController::class, 'restore'])->middleware('permission:expense.update')->name('restore');
+        Route::delete('/force-delete/{id}', [ExpenseController::class, 'forceDelete'])->middleware('permission:expense.delete')->name('force-delete');
 
-        // Expense Categories (Nested Prefix)
-        Route::prefix('categories')->name('categories.')->group(function () {
-            Route::get('/', [ExpenseController::class, 'categoriesIndex'])->middleware('permission:expense_category.view')->name('index');
-            Route::post('/', [ExpenseController::class, 'categoriesCreate'])->middleware('permission:expense_category.create')->name('create');
-        });
+        Route::delete('/bulk-destroy', [ExpenseController::class, 'bulkDestroy'])->middleware('permission:expense.delete')->name('bulk-destroy');
+        Route::delete('/bulk-force-delete', [ExpenseController::class, 'bulkForceDelete'])->middleware('permission:expense.delete')->name('bulk-force-delete');
+        Route::post('/bulk-restore', [ExpenseController::class, 'bulkRestore'])->middleware('permission:expense.update')->name('bulk-restore');
+    });
+
+    Route::prefix('expense-categories')->name('expense_categories.')->group(function () {
+        Route::get('/', [ExpenseCategoryController::class, 'index'])->middleware('permission:expense_category.view')->name('index');
+        Route::post('/', [ExpenseCategoryController::class, 'create'])->middleware('permission:expense_category.create')->name('create');
+        Route::put('/update/{id}', [ExpenseCategoryController::class, 'update'])->middleware('permission:expense_category.update')->name('update'); // /update/{id} pakai PUT[cite: 3]
+        Route::delete('/delete/{id}', [ExpenseCategoryController::class, 'delete'])->middleware('permission:expense_category.delete')->name('delete');
+        Route::post('/restore/{id}', [ExpenseCategoryController::class, 'restore'])->middleware('permission:expense_category.update')->name('restore');
+        Route::delete('/force-delete/{id}', [ExpenseCategoryController::class, 'forceDelete'])->middleware('permission:expense_category.delete')->name('force-delete');
+
+        Route::delete('/bulk-destroy', [ExpenseCategoryController::class, 'bulkDestroy'])->middleware('permission:expense_category.delete')->name('bulk-destroy');
+        Route::delete('/bulk-force-delete', [ExpenseCategoryController::class, 'bulkForceDelete'])->middleware('permission:expense_category.delete')->name('bulk-force-delete');
+        Route::post('/bulk-restore', [ExpenseCategoryController::class, 'bulkRestore'])->middleware('permission:expense_category.update')->name('bulk-restore');
     });
 
     // ==========================================

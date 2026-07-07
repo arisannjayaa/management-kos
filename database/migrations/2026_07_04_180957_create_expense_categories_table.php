@@ -13,14 +13,11 @@ return new class extends Migration
     {
         Schema::create('expense_categories', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->foreignUuid('property_id');
-            $table->string('name', 100);
+            $table->foreignUuid('owner_id')->constrained('users')->onDelete('cascade');
+            $table->string('name');
             $table->text('description')->nullable();
-            $table->boolean('is_active')->default(true);
             $table->timestamps();
             $table->softDeletes();
-
-            $table->unique(['property_id', 'name']);
         });
     }
 
