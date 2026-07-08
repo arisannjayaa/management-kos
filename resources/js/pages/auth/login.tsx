@@ -132,18 +132,18 @@ export default function Login({
                         </div>
 
                         {/* Tautan Daftar */}
-                        {canRegister && (
-                            <div className="mt-2 text-center text-xs font-medium text-muted-foreground">
-                                Belum memiliki akun?{' '}
-                                <TextLink
-                                    href={register()}
-                                    tabIndex={5}
-                                    className="font-bold text-foreground transition-colors hover:text-primary"
-                                >
-                                    Daftar sekarang
-                                </TextLink>
-                            </div>
-                        )}
+                        {/*{canRegister && (*/}
+                        {/*    <div className="mt-2 text-center text-xs font-medium text-muted-foreground">*/}
+                        {/*        Belum memiliki akun?{' '}*/}
+                        {/*        <TextLink*/}
+                        {/*            href={register()}*/}
+                        {/*            tabIndex={5}*/}
+                        {/*            className="font-bold text-foreground transition-colors hover:text-primary"*/}
+                        {/*        >*/}
+                        {/*            Daftar sekarang*/}
+                        {/*        </TextLink>*/}
+                        {/*    </div>*/}
+                        {/*)}*/}
                     </>
                 )}
             </Form>
