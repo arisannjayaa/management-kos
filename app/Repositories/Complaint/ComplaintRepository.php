@@ -1,20 +1,14 @@
 <?php
 
-namespace App\Services\Tenant;
+namespace App\Repositories\Complaint;
 
-use LaravelEasyRepository\BaseService;
+use LaravelEasyRepository\Repository;
 
-interface TenantService extends BaseService{
-
-    public function allActiveByOwner($ownerId);
+interface ComplaintRepository extends Repository{
 
     public function bulkDelete($ids);
-
     public function forceDelete($id);
-
     public function bulkForceDelete($ids);
-
     public function restore($id);
-
     public function bulkRestore($ids);
 }

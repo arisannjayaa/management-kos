@@ -42,21 +42,19 @@ class RolePermissionSeeder extends Seeder
             'occupancy.view', 'occupancy.create', 'occupancy.checkout', 'occupancy.delete',
             'charge_type.view', 'charge_type.create', 'charge_type.update', 'charge_type.delete',
 
-            // 🌟 SYNC FASE 4: OPERASIONAL OPERASI METERAN DIGITAL UTUH
+            // 🌟 SYNC FASE 4: OPERASIONAL METERAN DIGITAL
             'meter_reading.view', 'meter_reading.create', 'meter_reading.update', 'meter_reading.delete',
+
+            // 🔒 FIXED FASE 6: Pengeluaran Buku Operasional (Duplikasi Sudah Dibersihkan)
             'expense_category.view', 'expense_category.create', 'expense_category.update', 'expense_category.delete',
             'expense.view', 'expense.create', 'expense.update', 'expense.delete',
 
-            // Keuangan Kasir (Invoice & Payment)
-            'invoice.view', 'invoice.void', 'invoice.generate-manual', 'invoice.pay', // 🔒 FIXED: Duplikasi invoice.pay sudah dibersihkan
+            // Keuangan Kasir & Analitik (Invoice, Payment & Fase 7)
+            'invoice.view', 'invoice.void', 'invoice.generate-manual', 'invoice.pay',
             'payment.view', 'payment.create', 'payment.delete',
+            'report.view', // Untuk akses Dasbor Grafik & Cetak PDF Keuangan
 
-            // Pengeluaran / Buku Operasional (Kebutuhan Fase 6)
-            'expense_category.view', 'expense_category.create', 'expense_category.update', 'expense_category.delete',
-            'expense.view', 'expense.create', 'expense.update', 'expense.delete',
-            'report.view',
-
-            // Komplain / Keluhan Penghuni
+            // 🌟 SYNC FASE 8: Komplain / Keluhan Penghuni Kos
             'complaint.view', 'complaint.create', 'complaint.update', 'complaint.delete',
 
             // Pengelolaan Struktur Tim & Pengguna
@@ -88,11 +86,12 @@ class RolePermissionSeeder extends Seeder
         // 2. ROLE: OWNER (Aktor Utama Bisnis Kos)
         $owner = Role::firstOrCreate(['name' => 'owner', 'guard_name' => 'web']);
         $owner->syncPermissions(Permission::all()->reject(function ($p) {
-            // 🔒 REVISI UTAMA: Mengeluarkan 'invoice.pay' dari list reject agar Owner bisa terima uang sewa!
+            // Owner memegang semua kendali kecuali bypass portal milik Tenant mandiri
             return in_array($p->name, [
+                'role.manage',
                 'invoice.view-own',
                 'payment.view-own',
-                'complaint.create',
+                'complaint.create', // Kamar komplain hanya dibuat oleh Tenant pelapor
             ]);
         }));
 
@@ -101,33 +100,40 @@ class RolePermissionSeeder extends Seeder
         $staff->syncPermissions([
             'dashboard.view',
 
-            // 🌟 SEKARANG STAFF BISA MELIHAT MASTER KOS UNTUK KEPERLUAN OPERASIONAL
+            // Otoritas Baca Data Master untuk Operasional Kasir & Lapangan
             'property.view',
             'room_type.view',
             'room.view',
             'tenant.view',
 
-            // Operasional Kontrak & Kamar (Bisa Check-In / Check-Out tapi tidak bisa hapus)
+            // Operasional Kontrak Kamar
             'occupancy.view', 'occupancy.create', 'occupancy.checkout',
 
+            // Modul Keuangan & Pembayaran Sewa
             'invoice.view',
             'invoice.pay',
             'payment.view', 'payment.create',
+            'report.view', // 🌟 SINKRONISASI FASE 7: Staff kini diizinkan melihat dasbor laporan keuangan Owner
 
-            // 🌟 OPERASIONAL LAPANGAN: Keliling catat angka stan meteran air/listrik kos harian
+            // Modul Utilitas & Keliling Meteran
             'meter_reading.view', 'meter_reading.create',
 
-            'expense.view', 'expense.create',
-            'complaint.view', 'complaint.update',
+            // Modul Operasional Pengeluaran (Fase 6)
+            'expense_category.view', // 🌟 SINKRONISASI FASE 6: Staff bisa baca master kategori agar dropdown form tidak kosong
+            'expense.view', 'expense.create', // Staff boleh mencatat pengeluaran operasional lapangan
+
+            // Modul Keluhan Kamar Kos (Fase 8)
+            'complaint.view', 'complaint.update', // Staff bisa memantau aduan dan mengubah status perkembangan tiket
         ]);
 
         // 4. ROLE: TENANT (Portal Mandiri Penghuni Kamar Kos)
         $tenant = Role::firstOrCreate(['name' => 'tenant', 'guard_name' => 'web']);
         $tenant->syncPermissions([
+            'dashboard.view',
             'invoice.view-own',
             'payment.view-own',
-            'complaint.create',
-            'complaint.view',
+            'complaint.create', // Tenant berhak mengajukan keluhan baru
+            'complaint.view',   // Tenant berhak memantau progress perbaikan kamarnya sendiri
         ]);
     }
 }

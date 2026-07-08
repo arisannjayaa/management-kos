@@ -5,16 +5,14 @@ export type TenantStatus = 'active' | 'inactive';
 export type Tenant = {
     id: string;
     owner_id: string;
+    user_id: string;
     name: string;
     ktp_number: string | null;
+    ktp_attachment: string | null;
     phone: string;
     emergency_contact: string | null;
     status: TenantStatus;
-    ktp_attachment: string | null;
-
-    // Counter relasi total riwayat kontrak sewa
-    occupancies_count?: number;
-
+    email: string; // Diambil dari sinkronisasi relasi User
     created_at: string;
     updated_at: string;
     deleted_at?: string | null;
@@ -26,6 +24,5 @@ export type TenantFilters = {
     direction?: 'asc' | 'desc';
     per_page?: number;
     trashed?: '1';
-
-    status?: TenantStatus | 'all';
+    status?: 'active' | 'inactive' | 'all';
 };

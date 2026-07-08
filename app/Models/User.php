@@ -49,4 +49,12 @@ class User extends Authenticatable
     {
         return $this->hasMany(Payment::class, 'receiver_id');
     }
+
+    /**
+     * Relasi balik ke Profil Tenant (Symmetrical Relation)
+     */
+    public function tenant(): HasOne
+    {
+        return $this->hasOne(Tenant::class, 'user_id');
+    }
 }

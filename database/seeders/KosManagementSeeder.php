@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\ChargeMeterReading;
 use App\Models\ChargeType;
+use App\Models\Complaint;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Models\Invoice;
@@ -47,14 +48,6 @@ class KosManagementSeeder extends Seeder
         ]);
         $staff->assignRole('staff');
 
-        // D. AKUN: USER PORTAL TENANT
-        $tenantUser = User::where('email', 'tenant@kosmanager.com')->first() ?? User::factory()->create([
-            'name' => 'Made Penyewa Eksklusif',
-            'email' => 'tenant@kosmanager.com',
-            'password' => bcrypt('password'),
-        ]);
-        $tenantUser->assignRole('tenant');
-
         /*
         |--------------------------------------------------------------------------
         | MASTER GENERATOR: PROPERTI, UNIT KAMAR & OPERASIONAL METERAN
@@ -63,7 +56,38 @@ class KosManagementSeeder extends Seeder
         $this->command->info('=== MEMBUAT DATA MASTER GEDUNG KOS & KONTRAK HUNI ===');
 
         $properties = Property::factory(2)->create(['owner_id' => $owner->id]);
-        $tenants = Tenant::factory(12)->create(['owner_id' => $owner->id]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | 🌟 REVISI UTAMA: LOOPING SINKRONISASI PEMBUATAN TENANT & USER PORTAL
+        |--------------------------------------------------------------------------
+        */
+        $tenants = collect();
+        for ($i = 0; $i < 10; $i++) {
+            // Urutan pertama dikunci khusus untuk Made Penyewa Eksklusif agar sinkron pembukuan kamarnya
+            $email = ($i === 0) ? 'tenant@kosmanager.com' : 'tenant'.($i + 1).'@kosmanager.com';
+            $name = ($i === 0) ? 'Made Penyewa Eksklusif' : 'Penyewa Kos '.($i + 1);
+
+            // 1. Ambil atau buat User akun loginnya
+            $u = User::where('email', $email)->first() ?? User::factory()->create([
+                'name' => $name,
+                'email' => $email,
+                'password' => bcrypt('password'),
+            ]);
+            $u->assignRole('tenant');
+
+            // 2. Buat profil Tenant melalui factory. Kita timpa field 'user_id' dan 'email' sekaligus
+            // agar kebal dari ketidakcocokan skema rancangan database apa pun di laptop Bli.
+            $tenant = Tenant::factory()->create([
+                'owner_id' => $owner->id,
+                'user_id' => $u->id,
+                'name' => $u->name,
+                'email' => $u->email,
+            ]);
+
+            $tenants->push($tenant);
+        }
+
         $tenantIndex = 0;
 
         /*
@@ -132,13 +156,13 @@ class KosManagementSeeder extends Seeder
             $roomTypes = RoomType::factory(3)->create(['property_id' => $property->id]);
 
             foreach ($roomTypes as $type) {
-                $rooms = Room::factory(5)->create([
+                $rooms = Room::factory(100)->create([
                     'property_id' => $property->id,
                     'room_type_id' => $type->id,
                     'status' => 'available',
                 ]);
 
-                $occupiedRooms = $rooms->random(2);
+                $occupiedRooms = $rooms->random(50);
 
                 foreach ($occupiedRooms as $room) {
                     if (isset($tenants[$tenantIndex])) {
@@ -187,6 +211,53 @@ class KosManagementSeeder extends Seeder
                             ]);
                         }
 
+                        /*
+                        |--------------------------------------------------------------------------
+                        | SIMULASI TIKET KOMPLAIN / KELUHAN PENGHUNI (FASE 8)
+                        |--------------------------------------------------------------------------
+                        */
+                        if (rand(0, 1) === 1) {
+                            $complaintPool = [
+                                [
+                                    'title' => 'Kran Shower Mandi Rembes',
+                                    'description' => 'Kran di wastafel dan shower terus meneteskan air meskipun sudah ditutup rapat bertenaga. Mohon diperbaiki karena memicu genangan licin.',
+                                    'status' => 'pending',
+                                    'response_notes' => null,
+                                ],
+                                [
+                                    'title' => 'AC Kurang Dingin & Bergetar',
+                                    'description' => 'AC kamar sudah diset ke suhu maksimal 16 derajat tapi tetap gerah semalaman, dan unit indoor mengeluarkan suara bergetar keras.',
+                                    'status' => 'processing',
+                                    'response_notes' => 'Staff penjaga sudah menjadwalkan teknisi servis AC langganan untuk datang mengecek freon esok hari.',
+                                ],
+                                [
+                                    'title' => 'Lampu Utama Kamar Tiba-tiba Mati',
+                                    'description' => 'Saat dinyalakan tadi malam, lampunya berkedip sebentar lalu mati total tidak merespons saklar. Sepertinya filamen bohlamnya putus.',
+                                    'status' => 'resolved',
+                                    'response_notes' => 'Sudah diganti dengan lampu LED hemat energi baru ukuran 12 Watt oleh Wayan Penjaga Kos.',
+                                ],
+                                [
+                                    'title' => 'Koneksi WiFi Lemot & Putus-Putus',
+                                    'description' => 'Sinyal bar wifi terdeteksi penuh di pojok kasur tetapi ketika dipakai browsing muncul No Internet Connection.',
+                                    'status' => 'rejected',
+                                    'response_notes' => 'Setelah diinspeksi staff, router utama tidak bermasalah melainkan bandwidth tersedot penuh oleh aktivitas download pengguna lain. Sistem QoS pembatasan kecepatan telah diperketat.',
+                                ],
+                            ];
+
+                            $selectedComplaint = $complaintPool[array_rand($complaintPool)];
+
+                            Complaint::create([
+                                'property_id' => $property->id,
+                                'room_id' => $room->id,
+                                'tenant_id' => $currentTenant->id,
+                                'title' => $selectedComplaint['title'],
+                                'description' => $selectedComplaint['description'],
+                                'status' => $selectedComplaint['status'],
+                                'response_notes' => $selectedComplaint['response_notes'],
+                                'attachment' => null,
+                            ]);
+                        }
+
                         $room->update(['status' => 'occupied']);
                         $tenantIndex++;
                     }
@@ -203,7 +274,7 @@ class KosManagementSeeder extends Seeder
                 Expense::create([
                     'property_id' => $property->id,
                     'expense_category_id' => $randomCategory->id,
-                    'amount' => rand(2, 15) * 50000, // Nominal acak kelipatan 50.000
+                    'amount' => rand(2, 15) * 50000,
                     'expense_date' => now()->subDays(rand(1, 30))->format('Y-m-d'),
                     'notes' => 'Catatan operasional harian untuk '.strtolower($randomCategory->name),
                     'receipt_attachment' => null,
@@ -218,8 +289,6 @@ class KosManagementSeeder extends Seeder
         */
         $this->command->newLine();
         $this->command->info('=== TRIGER: AUTOMATED INVOICE ENGINE GENERATOR ===');
-
-        // Memanggil Artisan Command yang mengawinkan data pokok + biaya flat + log meteran utilitas
         $this->command->call('app:billing:generate');
 
         /*
@@ -234,13 +303,12 @@ class KosManagementSeeder extends Seeder
         $paySequence = 1;
 
         foreach ($generatedInvoices as $index => $invoice) {
-            // Skenario 1: Kelompok Invoice Lunas (Status: Paid via Tunai/Cash)
             if ($index % 4 === 0) {
                 $payNumber = 'PAY/'.now()->format('Y/m').'/'.str_pad($paySequence++, 4, '0', STR_PAD_LEFT);
 
                 Payment::create([
                     'invoice_id' => $invoice->id,
-                    'receiver_id' => $staff->id, // Diterima oleh staff operasional kos
+                    'receiver_id' => $staff->id,
                     'payment_number' => $payNumber,
                     'amount_paid' => $invoice->final_amount,
                     'payment_date' => now(),
@@ -252,19 +320,18 @@ class KosManagementSeeder extends Seeder
                     'paid_amount' => $invoice->final_amount,
                     'status' => 'paid',
                 ]);
-            } // Skenario 2: Kelompok Invoice Dicicil Sebagian (Status: Partially Paid via Transfer)
-            elseif ($index % 4 === 1) {
+            } elseif ($index % 4 === 1) {
                 $payNumber = 'PAY/'.now()->format('Y/m').'/'.str_pad($paySequence++, 4, '0', STR_PAD_LEFT);
                 $halfAmount = round($invoice->final_amount / 2);
 
                 Payment::create([
                     'invoice_id' => $invoice->id,
-                    'receiver_id' => $owner->id, // Divalidasi langsung oleh owner Bli Ari
+                    'receiver_id' => $owner->id,
                     'payment_number' => $payNumber,
                     'amount_paid' => $halfAmount,
                     'payment_date' => now()->subHours(2),
                     'payment_method' => 'transfer',
-                    'proof_attachment' => 'attachments/payments/sample_struk.jpg', // Simulasi file struk bank masuk
+                    'proof_attachment' => 'attachments/payments/sample_struk.jpg',
                     'notes' => 'Cicilan pertama via transfer Mandiri, pelunasan dijanjikan akhir minggu.',
                 ]);
 
@@ -272,15 +339,12 @@ class KosManagementSeeder extends Seeder
                     'paid_amount' => $halfAmount,
                     'status' => 'partially_paid',
                 ]);
-            } // Skenario 3: Kelompok Invoice Dibatalkan / Salah Input (Status: Void)
-            elseif ($index % 4 === 2) {
+            } elseif ($index % 4 === 2) {
                 $invoice->update([
                     'status' => 'void',
                     'notes' => 'Dibatalkan otomatis oleh Owner karena ada koreksi selisih angka meteran.',
                 ]);
             }
-
-            // Skenario 4: Sisa kelompok dibiarkan 'unpaid' (Belum Bayar) tanpa kuitansi untuk menguji fungsi tombol bayar
         }
 
         $this->command->info('=== SELURUH DATA PEMBUKUAN KASIR BERHASIL DISINKRONKAN SEMPURNA ===');

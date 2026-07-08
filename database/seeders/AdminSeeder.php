@@ -30,7 +30,7 @@ class AdminSeeder extends Seeder
             'email' => 'wayanarisanjaya01@gmail.com',
         ], [
             'id' => 's7w9k0swo2s40oss', // Tetap mempertahankan ID unik milik Anda
-            'name' => 'Ari Sanjaya',
+            'name' => 'Super Admin',
             'password' => Hash::make('password1'),
             'is_active' => true,
         ]);

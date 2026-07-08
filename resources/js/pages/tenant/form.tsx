@@ -1,7 +1,5 @@
-// resources/js/pages/Tenants/form.tsx
-
 import { router, useForm, usePage } from '@inertiajs/react';
-import { User, Phone, CreditCard, ShieldAlert } from 'lucide-react';
+import { User, Phone, CreditCard, ShieldAlert, Mail } from 'lucide-react';
 import type { FormEvent } from 'react';
 import { useEffect, useState } from 'react';
 
@@ -11,18 +9,10 @@ import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { FileUpload } from '@/components/ui/file-upload';
-
-import { cn } from '@/lib/utils';
 import type { Tenant, TenantStatus } from '@/types/tenant/tenant-type';
 
 function useIsMobile() {
-    const [isMobile, setIsMobile] = useState(() => {
-        if (typeof window !== 'undefined') {
-            return window.matchMedia('(max-width: 640px)').matches;
-        }
-        return false;
-    });
-
+    const [isMobile, setIsMobile] = useState(false);
     useEffect(() => {
         const media = window.matchMedia('(max-width: 640px)');
         setIsMobile(media.matches);
@@ -36,6 +26,7 @@ function useIsMobile() {
 type FormData = {
     _method?: string;
     name: string;
+    email: string; // Ditambahkan untuk integrasi pembuatan User akun login
     ktp_number: string;
     phone: string;
     emergency_contact: string;
@@ -43,11 +34,7 @@ type FormData = {
     status: TenantStatus;
 };
 
-type Props = {
-    open: boolean;
-    item: Tenant | null;
-    onClose: () => void;
-};
+type Props = { open: boolean; item: Tenant | null; onClose: () => void; };
 
 export function TenantFormModal({ open, item, onClose }: Props) {
     const isEdit = item !== null;
@@ -63,8 +50,9 @@ export function TenantFormModal({ open, item, onClose }: Props) {
 
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm<FormData>({
         name: '',
+        email: '',
         ktp_number: '',
-        ktp_attachment: null, // Initial State Kosong
+        ktp_attachment: null,
         phone: '',
         emergency_contact: '',
         status: 'active'
@@ -74,8 +62,9 @@ export function TenantFormModal({ open, item, onClose }: Props) {
         if (open) {
             setData({
                 name: item?.name ?? '',
+                email: item?.email ?? '',
                 ktp_number: item?.ktp_number ?? '',
-                ktp_attachment: null, // File biner baru selalu dimulai dari null
+                ktp_attachment: null,
                 phone: item?.phone ?? '',
                 emergency_contact: item?.emergency_contact ?? '',
                 status: (item?.status as TenantStatus) ?? 'active'
@@ -84,12 +73,7 @@ export function TenantFormModal({ open, item, onClose }: Props) {
         }
     }, [open, item]);
 
-    const handleClose = () => {
-        if (processing) return;
-        reset();
-        clearErrors();
-        onClose();
-    };
+    const handleClose = () => { if (processing) return; reset(); clearErrors(); onClose(); };
 
     const handleSubmit = (e: FormEvent) => {
         e.preventDefault();
@@ -98,12 +82,8 @@ export function TenantFormModal({ open, item, onClose }: Props) {
         const options = { preserveScroll: true, onSuccess: handleClose };
 
         if (isEdit) {
-            // 🌟 KUNCI PERBAIKAN FILE UPLOAD PADA INERTIA EDIT MODE:
-            // Tembak menggunakan POST dengan spoofing _method: 'PUT' agar berkas terbaca oleh PHP Laravel
-            router.post(`/tenants/update/${item.id}`, {
-                ...data,
-                _method: 'PUT'
-            }, options);
+            // Spoofing POST ke PUT untuk kompatibilitas upload file PHP Laravel
+            router.post(`/tenants/update/${item.id}`, { ...data, _method: 'PUT' }, options);
         } else {
             post('/tenants', options);
         }
@@ -122,17 +102,25 @@ export function TenantFormModal({ open, item, onClose }: Props) {
 
         return (
             <form id="tenant-form" onSubmit={handleSubmit} className="space-y-4 px-1 py-2 no-scrollbar max-h-[60vh] overflow-y-auto">
-                {/* Nama Penyewa */}
                 <div className="flex flex-col space-y-1.5">
                     <FormLabel htmlFor="tn-name" required>Nama Lengkap Sesuai KTP</FormLabel>
                     <div className="relative">
                         <User className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input id="tn-name" value={data.name} onChange={(e) => setData('name', e.target.value)} placeholder="Cth: I Wayan Ari Sanjaya..." className="h-10.5 rounded-xl bg-card pl-10 font-medium" disabled={processing} />
+                        <Input id="tn-name" value={data.name} onChange={(e) => setData('name', e.target.value)} placeholder="Cth: I Wayan Ari Sanjaya..." className="h-10.5 rounded-xl bg-card pl-10 font-medium" disabled={processing} required />
                     </div>
                     <FormErrorMessage message={errors.name} />
                 </div>
 
-                {/* Nomor KTP */}
+                {/* Input Email Sinkronisasi Akun Login */}
+                <div className="flex flex-col space-y-1.5">
+                    <FormLabel htmlFor="tn-email" required>Alamat Email Akun Portal</FormLabel>
+                    <div className="relative">
+                        <Mail className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input id="tn-email" type="email" value={data.email} onChange={(e) => setData('email', e.target.value)} placeholder="Cth: ari@digitalspirit.my.id" className="h-10.5 rounded-xl bg-card pl-10 font-medium" disabled={processing} required />
+                    </div>
+                    <FormErrorMessage message={errors.email} />
+                </div>
+
                 <div className="flex flex-col space-y-1.5">
                     <FormLabel htmlFor="tn-ktp">Nomor Induk Kependudukan (KTP)</FormLabel>
                     <div className="relative">
@@ -142,21 +130,19 @@ export function TenantFormModal({ open, item, onClose }: Props) {
                     <FormErrorMessage message={errors.ktp_number} />
                 </div>
 
-                {/* 🌟 INTEGRASI KOMPONEN COMPONENT DROPZONE */}
                 <FileUpload
                     label="Dokumen Lampiran Pendukung (Scan KTP)"
-                    existingFileUrl={item?.ktp_attachment} // Kirim berkas url lama jika ada (untuk di-preview)
+                    existingFileUrl={item?.ktp_attachment}
                     onChange={(file) => setData('ktp_attachment', file)}
                     error={errors.ktp_attachment}
                 />
 
-                {/* Grid: No HP & Kontak Darurat */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                     <div className="flex flex-col space-y-1.5">
                         <FormLabel htmlFor="tn-phone" required>No. WhatsApp Aktif</FormLabel>
                         <div className="relative">
                             <Phone className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
-                            <Input id="tn-phone" value={data.phone} onChange={(e) => setData('phone', e.target.value)} placeholder="Cth: 081234567xxx" className="h-10.5 rounded-xl bg-card pl-10 font-mono font-bold" disabled={processing} />
+                            <Input id="tn-phone" value={data.phone} onChange={(e) => setData('phone', e.target.value)} placeholder="Cth: 081234567xxx" className="h-10.5 rounded-xl bg-card pl-10 font-mono font-bold" disabled={processing} required />
                         </div>
                         <FormErrorMessage message={errors.phone} />
                     </div>
@@ -171,11 +157,10 @@ export function TenantFormModal({ open, item, onClose }: Props) {
                     </div>
                 </div>
 
-                {/* Status Dropdown */}
                 {isEdit && (
                     <div className="flex flex-col space-y-1.5 border-t border-border/40 pt-3">
                         <FormLabel htmlFor="tn-status" required>Status Keanggotaan</FormLabel>
-                        <select id="tn-status" value={data.status} onChange={(e) => setData('status', e.target.value as TenantStatus)} className="w-full h-10.5 rounded-xl border border-border bg-card px-3.5 text-sm font-bold outline-none focus:border-primary text-foreground appearance-none" disabled={processing}>
+                        <select id="tn-status" value={data.status} onChange={(e) => setData('status', e.target.value as TenantStatus)} className="w-full h-10.5 rounded-xl border border-border bg-card px-3.5 text-sm font-bold outline-none text-foreground appearance-none" disabled={processing}>
                             <option value="active">Aktif (Menghuni / Terdaftar)</option>
                             <option value="inactive">Nonaktif (Sudah Keluar / Pindahan)</option>
                         </select>
@@ -188,11 +173,9 @@ export function TenantFormModal({ open, item, onClose }: Props) {
 
     const renderFooterButtons = () => (
         <>
-            <Button type="button" variant="ghost" size="sm" onClick={handleClose} className="h-10 rounded-xl px-4 text-[11px] font-black tracking-wider text-slate-500 uppercase">
-                Batal
-            </Button>
+            <Button type="button" variant="ghost" size="sm" onClick={handleClose} className="h-10 rounded-xl px-4 text-[11px] font-black tracking-wider text-slate-500 uppercase">Batal</Button>
             {isAuthorized && (
-                <Button type="submit" form="tenant-form" size="sm" disabled={processing} className="h-10 rounded-xl bg-primary px-5 text-[11px] font-black tracking-wider text-primary-foreground uppercase hover:bg-primary/90">
+                <Button type="submit" form="tenant-form" size="sm" disabled={processing} className="h-10 rounded-xl bg-primary px-5 text-[11px] font-black tracking-wider text-primary-foreground uppercase">
                     {processing ? 'Menyimpan...' : isEdit ? 'Simpan Profil' : 'Daftarkan Penyewa'}
                 </Button>
             )}
@@ -208,9 +191,7 @@ export function TenantFormModal({ open, item, onClose }: Props) {
                         <DrawerDescription className="text-xs font-medium text-muted-foreground">Catat identitas personal penyewa untuk validasi invoice penagihan.</DrawerDescription>
                     </DrawerHeader>
                     <div className="flex flex-1 flex-col overflow-hidden px-6">{renderFormFields()}</div>
-                    <DrawerFooter className="flex shrink-0 flex-row items-center justify-between gap-2 border-t border-border/60 bg-background px-6 pt-4 pb-8">
-                        {renderFooterButtons()}
-                    </DrawerFooter>
+                    <DrawerFooter className="flex shrink-0 flex-row items-center justify-between gap-2 border-t border-border/60 bg-background px-6 pt-4 pb-8">{renderFooterButtons()}</DrawerFooter>
                 </DrawerContent>
             </Drawer>
         );
@@ -224,9 +205,7 @@ export function TenantFormModal({ open, item, onClose }: Props) {
                     <DialogDescription className="text-xs text-muted-foreground">Pastikan nomor WhatsApp yang dimasukkan aktif demi kelancaran pengiriman pesan otomatis.</DialogDescription>
                 </DialogHeader>
                 <div className="flex flex-1 flex-col overflow-hidden">{renderFormFields()}</div>
-                <DialogFooter className="flex shrink-0 flex-row items-center justify-between gap-2 border-t border-border/50 pt-4 sm:justify-end">
-                    {renderFooterButtons()}
-                </DialogFooter>
+                <DialogFooter className="flex shrink-0 flex-row items-center justify-between gap-2 border-t border-border/50 pt-4 sm:justify-end">{renderFooterButtons()}</DialogFooter>
             </DialogContent>
         </Dialog>
     );
@@ -235,7 +214,6 @@ export function TenantFormModal({ open, item, onClose }: Props) {
 function FormLabel({ children, required = false, htmlFor }: { children: React.ReactNode; required?: boolean; htmlFor?: string }) {
     return <Label htmlFor={htmlFor} className="flex items-center gap-1 text-[10px] font-bold tracking-wider text-slate-400 uppercase select-none dark:text-slate-500">{children}{required && <span className="text-red-500">*</span>}</Label>;
 }
-
 function FormErrorMessage({ message }: { message?: string }) {
     if (!message) return null;
     return <p className="mt-1 animate-in pl-0.5 text-xs font-semibold text-red-500 duration-150 fade-in-50">{message}</p>;

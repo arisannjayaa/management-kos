@@ -15,12 +15,14 @@ class Tenant extends Model
 
     protected $fillable = [
         'owner_id',
+        'user_id',
         'name',
+        'email',
         'ktp_number',
+        'ktp_attachment', // 🌟 Ditambahkan disini
         'phone',
         'emergency_contact',
-        'ktp_attachment',
-        'status',
+        'status'
     ];
 
     /**
@@ -37,5 +39,18 @@ class Tenant extends Model
     public function occupancies(): HasMany
     {
         return $this->hasMany(Occupancy::class);
+    }
+
+    public function complaints(): HasMany
+    {
+        return $this->hasMany(Complaint::class, 'tenant_id');
+    }
+
+    /**
+     * Relasi ke Akun Login Tenant
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
     }
 }

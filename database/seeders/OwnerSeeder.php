@@ -17,7 +17,7 @@ class OwnerSeeder extends Seeder
         $owner = User::firstOrCreate([
             'email' => 'owner@kosmanager.com',
         ], [
-            'name' => 'Ari Sanjaya',
+            'name' => 'Owner',
             'password' => Hash::make('password1'),
             'is_active' => true,
         ]);

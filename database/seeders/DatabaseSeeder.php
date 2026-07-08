@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             AdminSeeder::class, // Contoh: Seeder untuk akun Admin
             OwnerSeeder::class,
             StaffSeeder::class,
+            TenantSeeder::class,
             KosManagementSeeder::class,
         ]);
 
