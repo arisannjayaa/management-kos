@@ -5,12 +5,11 @@ namespace App\Http\Controllers;
 use App\DataTables\TenantDataTable;
 use App\Helpers\Helper;
 use App\Http\Requests\TenantRequest;
-use App\Models\Tenant;
 use App\Services\Tenant\TenantService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
- // 🌟 Panggil Facade Storage
+// 🌟 Panggil Facade Storage
 
 class TenantController extends Controller
 {
@@ -32,54 +31,32 @@ class TenantController extends Controller
 
     public function create(TenantRequest $request)
     {
-        $data = $request->validated();
-        $data['owner_id'] = auth()->id();
-
-        // 🌟 LOGIKA UPLOAD BERKAS BARU
-        if ($request->hasFile('ktp_attachment')) {
-            $file = $request->file('ktp_attachment');
-            $path = $file->store('attachments/ktp', 'public');
-            $data['ktp_attachment'] = $path;
-        }
+        // 🌟 Pastikan 'ktp_attachment' ikut dikumpulkan di dalam array only
+        $data = $request->only(['name', 'ktp_number', 'ktp_attachment', 'phone', 'emergency_contact', 'status', 'email']);
 
         $response = $this->tenantService->create($data);
         if (! $response->getStatus()) {
-            if (isset($data['ktp_attachment'])) {
-                Storage::disk('public')->delete($data['ktp_attachment']);
-            }
-
-            return redirect()->back()->withErrors(['error' => $response->getMessage()]);
+            return redirect()->back()->withInput()->with('error', $response->getMessage()); // Evaluasi 9.1[cite: 1]
         }
 
-        return redirect()->to(route('tenants.index'))->with('success', 'Profil penyewa dan dokumen berhasil disimpan!');
+        $result = $response->getResult();
+
+        return redirect($result['redirect'])->with('success', $response->getMessage()); // Standard redirect 9.3[cite: 1]
     }
 
     public function update(TenantRequest $request, $id)
     {
-        $data = $request->validated();
-        $tenantId = Helper::decrypt($id);
+        // 🌟 Pastikan 'ktp_attachment' ikut dikumpulkan di dalam array only
+        $data = $request->only(['name', 'ktp_number', 'ktp_attachment', 'phone', 'emergency_contact', 'status', 'email']);
 
-        // Ambil data entity lama dari database untuk mengecek file lama
-        $tenant = Tenant::findOrFail($tenantId);
-
-        // 🌟 LOGIKA UPDATE & PENYINGKIRAN FILE LAMA
-        if ($request->hasFile('ktp_attachment')) {
-            // Hapus file fisik lama jika sebelumnya sudah pernah upload berkas
-            if ($tenant->ktp_attachment) {
-                Storage::disk('public')->delete($tenant->ktp_attachment);
-            }
-
-            $file = $request->file('ktp_attachment');
-            $path = $file->store('attachments/ktp', 'public');
-            $data['ktp_attachment'] = $path;
-        }
-
-        $response = $this->tenantService->update($tenantId, $data);
+        $response = $this->tenantService->update(Helper::decrypt($id), $data);
         if (! $response->getStatus()) {
-            return redirect()->back()->withErrors(['error' => $response->getMessage()]);
+            return redirect()->back()->withInput()->with('error', $response->getMessage());
         }
 
-        return redirect()->to(route('tenants.index'))->with('success', 'Data profil penyewa berhasil diperbarui!');
+        $result = $response->getResult();
+
+        return redirect($result['redirect'])->with('success', $response->getMessage());
     }
 
     public function delete(Request $request, $id)

@@ -71,4 +71,9 @@ class Property extends Model
     {
         return $this->hasMany(Expense::class);
     }
+
+    public function complaints(): HasMany
+    {
+        return $this->hasMany(Complaint::class, 'property_id');
+    }
 }

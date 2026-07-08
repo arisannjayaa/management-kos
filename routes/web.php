@@ -161,8 +161,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('complaints')->name('complaints.')->group(function () {
         Route::get('/', [ComplaintController::class, 'index'])->middleware('permission:complaint.view')->name('index');
         Route::post('/', [ComplaintController::class, 'create'])->middleware('permission:complaint.create')->name('create');
-        Route::put('/update-status/{id}', [ComplaintController::class, 'updateStatus'])->middleware('permission:complaint.update')->name('update-status');
+        Route::post('/update/{id}', [ComplaintController::class, 'update'])->middleware('permission:complaint.update')->name('update'); // POST untuk Inertia Upload compatibility
         Route::delete('/delete/{id}', [ComplaintController::class, 'delete'])->middleware('permission:complaint.delete')->name('delete');
+        Route::post('/restore/{id}', [ComplaintController::class, 'restore'])->middleware('permission:complaint.update')->name('restore');
+        Route::delete('/force-delete/{id}', [ComplaintController::class, 'forceDelete'])->middleware('permission:complaint.delete')->name('force-delete');
+
+        Route::delete('/bulk-destroy', [ComplaintController::class, 'bulkDestroy'])->middleware('permission:complaint.delete')->name('bulk-destroy');
+        Route::delete('/bulk-force-delete', [ComplaintController::class, 'bulkForceDelete'])->middleware('permission:complaint.delete')->name('bulk-force-delete');
+        Route::post('/bulk-restore', [ComplaintController::class, 'bulkRestore'])->middleware('permission:complaint.update')->name('bulk-restore');
     });
 
     Route::prefix('reports')->name('reports.')->group(function () {

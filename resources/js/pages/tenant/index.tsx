@@ -1,21 +1,24 @@
-// resources/js/pages/Tenants/index.tsx
-
-import { Head, usePage, router } from '@inertiajs/react';
-import { PlusIcon, Trash2Icon, User } from 'lucide-react';
-import { useCallback, useEffect, useRef, useMemo, useState } from 'react';
+import { Head } from '@inertiajs/react';
+import { Plus, Users } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import {
     BulkDeleteConfirmDialog,
+    BulkForceDeleteConfirmDialog,
+    BulkRestoreConfirmDialog,
     DataTable,
     DataTableBulkBar,
     DataTableFilterChips,
     DataTablePagination,
     DataTableToolbar,
+    DataTableTrashToggle
 } from '@/components/datatable';
 import DeleteConfirmDialog from '@/components/delete-confirm-dialog';
 import { Button } from '@/components/ui/button';
 
 import { useBulkDelete } from '@/hooks/use-bulk-delete';
+import { useBulkForceDelete } from '@/hooks/use-bulk-force-delete';
+import { useBulkRestore } from '@/hooks/use-bulk-restore';
 import { useDatatable } from '@/hooks/use-datatable';
 import { useDebounceSearch } from '@/hooks/use-debounce-search';
 import { useIsMobile } from '@/hooks/use-is-mobile';
@@ -23,268 +26,175 @@ import { useModalForm } from '@/hooks/use-modal-form';
 import { useRowSelection } from '@/hooks/use-row-selection';
 import { useSoftDelete } from '@/hooks/use-soft-delete';
 
-import { MobileList } from '@/pages/tenant/mobile-list';
-import { createTenantColumns } from './columns';
+import { MobileList } from './mobile-list';
+import { createTenantColumns, createTenantTrashedColumns } from './columns';
 import { TenantFormModal } from './form';
-
 import type { Tenant, TenantFilters } from '@/types/tenant/tenant-type';
 import type { PaginatedResponse } from '@/types/pagination';
+import type { ComplaintFilters } from '@/types/complaint/complaint-type';
 
-const TENANT_STATUS_OPTIONS = [
-    { value: 'active', label: 'Aktif Menghuni' },
-    { value: 'inactive', label: 'Pindahan / Keluar' },
-];
-
-const labelOf = (options: { value: string; label: string }[], value?: string) => {
-    return options.find((opt) => opt.value === value)?.label ?? '—';
-};
-
-type Props = {
-    tenants: PaginatedResponse<Tenant>;
-    filters: TenantFilters;
-};
+type Props = { tenants: PaginatedResponse<Tenant>; filters: TenantFilters; };
 
 export default function TenantIndex({ tenants, filters }: Props) {
+    const showTrashed = filters.trashed === '1';
     const isMobile = useIsMobile();
     const [mounted, setMounted] = useState(false);
-
-    // 🌟 AMBIL PERMISSION DARI GLOBAL SHARED PROPS INERTIA
-    const { auth } = usePage<any>().props;
-    const userRoles = auth?.user?.roles ?? [];
-    const userPermissions = auth?.user?.permissions ?? [];
-
-    // Bypass otomatis jika dia super_admin
-    const isSuperAdmin = userRoles.includes('super_admin');
-
-    const canCreate = isSuperAdmin || userPermissions.includes('tenant.create');
-    const canDelete = isSuperAdmin || userPermissions.includes('tenant.delete');
-
     useEffect(() => {
         setMounted(true);
     }, []);
 
-    const { applyFilter, goToPage, isPending, applySort } =
-        useDatatable<TenantFilters>('/tenants', filters);
-
-    const { search: searchValue, setSearch: handleSearch } = useDebounceSearch(
+    // 🌟 10 Hooks Urutan Konsisten Mutlak Sesuai Aturan Panduan Praktis §4.5[cite: 1]
+    const { applyFilter, goToPage, isPending, applySort } = useDatatable<TenantFilters>('/tenants', filters);
+    const { search, setSearch } = useDebounceSearch(
         filters.search,
         400,
         (value) => {
             if (value !== (filters.search ?? '')) {
-                applyFilter({ search: value || undefined } as Partial<TenantFilters>);
+                applyFilter({
+                    search: value || undefined
+                } as Partial<TenantFilters>);
             }
-        },
+        }
     );
-
     const modal = useModalForm<Tenant>();
+    const selection = useRowSelection<string>(); // Proteksi 9.5: Menggunakan tipe string terenkripsi[cite: 1]
+    const softDelete = useSoftDelete<Tenant>({ getUrl: (i) => `/tenants/delete/${i.id}` });
+    const bulkDelete = useBulkDelete({ url: '/tenants/bulk-destroy' });
+    const singleRestore = useSoftDelete<Tenant>({ getUrl: (i) => `/tenants/restore/${i.id}`, method: 'post' });
+    const singleForceDelete = useSoftDelete<Tenant>({ getUrl: (i) => `/tenants/force-delete/${i.id}` });
+    const bulkRestore = useBulkRestore({ url: '/tenants/bulk-restore' });
+    const bulkForceDelete = useBulkForceDelete({ url: '/tenants/bulk-force-delete' });
 
-    // 🌟 Sinkronisasi Selection Bertipe <number> Agar Checkbox Internal Aktif Sempurna
-    const selection = useRowSelection<number>();
     const clearAllRef = useRef(selection.clearAll);
     clearAllRef.current = selection.clearAll;
-
     useEffect(() => {
         clearAllRef.current();
-    }, [tenants.current_page, filters.search, filters.status]);
+    }, [tenants.current_page, filters.search, filters.trashed]);
 
-    // Hooks Pemicu Tunggal & Massal
-    const softDelete = useSoftDelete<Tenant>({
-        getUrl: (t) => `/tenants/delete/${t.id}`,
-        onSuccess: () => clearAllRef.current(),
-    });
-    const bulkDelete = useBulkDelete({
-        url: '/tenants/bulk-destroy',
-        onSuccess: () => clearAllRef.current(),
-    });
-
-    // Operasikan columns dengan melemparkan permission untuk menyaring tombol aksi di sel tabel
-    const columns = useMemo(() => {
-        return createTenantColumns({
-            onEdit: (t) => modal.open(t),
-            onDelete: (t) => softDelete.trigger(t),
-            userPermissions: userPermissions, // 🌟 Oper untuk proteksi aksi baris tabel
-        });
-    }, [softDelete, modal, userPermissions]);
-
-    const bulkBarActions = canDelete
-        ? [
-            {
-                label: 'Hapus Rekaman Massal',
-                icon: <Trash2Icon className="size-3.5" />,
-                destructive: true as const,
-                onClick: (ids: (string | number)[]) => bulkDelete.trigger(ids),
-            },
-        ]
-        : [];
+    const columns = useMemo(() => showTrashed
+            ? createTenantTrashedColumns({
+                onRestore: (c) => singleRestore.trigger(c),
+                onForceDelete: (c) => singleForceDelete.trigger(c)
+            })
+            : createTenantColumns({ onEdit: (c) => modal.open(c), onDelete: (c) => softDelete.trigger(c) }),
+        [showTrashed, singleRestore, singleForceDelete, softDelete, modal]);
 
     const filterFields = [
         {
             key: 'status',
             label: 'Status Hunian',
             placeholder: 'Semua Status',
-            options: TENANT_STATUS_OPTIONS,
+            options: [{ value: 'active', label: 'Aktif' }, { value: 'inactive', label: 'Nonaktif' }],
             value: filters.status,
-            onChange: (v: string | undefined) =>
-                applyFilter({ status: v } as Partial<TenantFilters>),
-        },
+            onChange: (v: string | undefined) => applyFilter({ status: v as any } as Partial<TenantFilters>)
+        }
     ];
 
-    // ─── RENDER MOBILE LAYOUT ───
-    if (mounted && isMobile) {
+    if (!mounted) return null;
+
+    if (isMobile) {
         return (
             <>
-                <Head title="Buku Manajemen Penyewa" />
-                <MobileList
-                    initialTenants={tenants}
-                    filters={filters}
-                    onAdd={() => modal.open()}
-                    onEdit={(t) => modal.open(t)}
-                    onDelete={(t) => softDelete.trigger(t)}
-                    onSearch={handleSearch}
-                    searchValue={searchValue}
-                    isPending={isPending}
-                />
-
+                <Head title="Manajemen Penyewa" />
+                <MobileList initialData={tenants} showTrashed={showTrashed} onSearch={setSearch} searchValue={search}
+                            isPending={isPending} onEdit={(c) => modal.open(c)} onDelete={(c) => softDelete.trigger(c)}
+                            onRestore={(c) => singleRestore.trigger(c)}
+                            onForceDelete={(c) => singleForceDelete.trigger(c)} />
+                {!showTrashed && <Button onClick={() => modal.open()} size="icon"
+                                         className="fixed right-5 bottom-24 size-14 rounded-full shadow-lg z-50 bg-primary"><Plus
+                    size={24} /></Button>}
                 <TenantFormModal open={modal.isOpen} item={modal.item} onClose={modal.close} />
-
-                <DeleteConfirmDialog
-                    open={softDelete.open}
-                    onOpenChange={softDelete.setOpen}
-                    description={
-                        <>
-                            Apakah Anda yakin membuang profil penyewa{' '}
-                            <span className="font-bold">"{softDelete.item?.name}"</span>?
-                            Kontrak sewa aktif milik yang bersangkutan (jika ada) akan ikut terhenti.
-                        </>
-                    }
-                    onConfirm={softDelete.confirm}
-                />
+                <DeleteConfirmDialog open={singleForceDelete.open} onOpenChange={singleForceDelete.setOpen}
+                                     description="Hapus berkas data penyewa kos secara permanen?"
+                                     onConfirm={singleForceDelete.confirm} />
             </>
         );
     }
 
-    // ─── RENDER DESKTOP LAYOUT ───
     return (
         <>
-            <Head title="Buku Manajemen Penyewa" />
-
-            <div className="mx-auto w-full max-w-7xl space-y-6 p-6 md:p-8">
-                {/* Header */}
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary">
-                            <User size={24} />
-                        </div>
-                        <div>
-                            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-                                Manajemen Data Penyewa (Tenant)
-                            </h1>
-                            <p className="mt-0.5 text-sm text-muted-foreground">
-                                Total <span className="font-medium text-foreground">{tenants.total}</span> penyewa terdaftar di bawah pengawasan Anda.
-                            </p>
-                        </div>
+            <Head title="Berkas Data Penyewa Kos" />
+            <div className="mx-auto w-full max-w-7xl space-y-6 p-6">
+                <div className="flex justify-between items-center">
+                    <div>
+                        <h1 className="text-2xl font-black flex items-center gap-2"><Users size={24}
+                                                                                           className="text-primary" /> Manajemen
+                            Berkas Penyewa</h1>
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Registrasi
+                            profil tenant serta sinkronisasi hak akses akun portal mandiri.</p>
                     </div>
-
-                    {/* 🌟 PROTEKSI TOMBOL REGISTRASI DESKTOP */}
-                    {canCreate && (
-                        <Button
-                            onClick={() => modal.open()}
-                            className="bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 rounded-xl h-11 px-5"
-                        >
-                            <PlusIcon className="mr-2 size-4" /> Registrasi Penyewa Baru
-                        </Button>
-                    )}
+                    {!showTrashed &&
+                        <Button onClick={() => modal.open()} className="rounded-xl font-bold"><Plus size={16}
+                                                                                                    className="mr-1.5" /> Daftarkan
+                            Tenant</Button>}
                 </div>
 
-                {/* Toolbar */}
-                <DataTableToolbar
-                    searchValue={searchValue}
-                    onSearch={handleSearch}
-                    searchPlaceholder="Cari nama penyewa, nomor WhatsApp, atau nomor KTP..."
-                    activeFilterCount={filters.status ? 1 : 0}
-                    filterFields={filterFields}
-                    onClearFilters={() => applyFilter({ search: undefined, status: undefined } as Partial<TenantFilters>)}
-                    perPage={filters.per_page ?? 10}
-                    onPerPageChange={(v) => applyFilter({ per_page: v } as Partial<TenantFilters>)}
-                />
+                <DataTableToolbar searchValue={search} onSearch={setSearch} searchPlaceholder="Cari nama penyewa..."
+                                  filterFields={filterFields}
+                                  activeFilterCount={(filters.status && filters.status !== 'all' ? 1 : 0)}
+                                  onClearFilters={() => applyFilter({
+                                      search: undefined,
+                                      status: undefined
+                                  } as Partial<TenantFilters>)} perPage={filters.per_page ?? 10}
+                                  onPerPageChange={(v) => applyFilter({ per_page: v } as Partial<TenantFilters>)}
+                                  rightSlot={<DataTableTrashToggle showTrashed={showTrashed}
+                                                                   onChange={(show) => applyFilter({
+                                                                       trashed: show ? '1' : undefined,
+                                                                       search: undefined
+                                                                   } as Partial<TenantFilters>)} />} />
+                <DataTableFilterChips configs={[{
+                    key: 'search',
+                    value: filters.search,
+                    label: `Nama: "${filters.search}"`,
+                    onRemove: () => applyFilter({ search: undefined } as Partial<TenantFilters>)
+                }]} />
 
-                {/* Filter Chips */}
-                <DataTableFilterChips
-                    configs={[
-                        {
-                            key: 'search',
-                            value: filters.search,
-                            label: `Pencarian: "${filters.search}"`,
-                            onRemove: () => applyFilter({ search: undefined } as Partial<TenantFilters>),
-                        },
-                        {
-                            key: 'status',
-                            value: filters.status,
-                            label: `Status Hunian: ${labelOf(TENANT_STATUS_OPTIONS, filters.status)}`,
-                            onRemove: () => applyFilter({ status: undefined } as Partial<TenantFilters>),
-                        },
-                    ]}
-                />
-
-                {/* Grid Main DataTable */}
-                <DataTable
-                    data={tenants}
-                    columns={columns}
-                    getRowId={(d) => d.id}
-                    sort={filters.sort}
-                    direction={filters.direction}
-                    onSort={applySort}
-                    isPending={isPending}
-                    emptyText="Belum ada data penyewa terdaftar yang sesuai kriteria penapisan."
-                    rowSelection={canDelete ? selection : undefined} // 🌟 HANYA AKTIFKAN CHECKBOX JIKA USER PUNYA IZIN DELETION MASSAL
-                />
-
+                <DataTable data={tenants} columns={columns} getRowId={(d) => d.id} sort={filters.sort}
+                           direction={filters.direction} onSort={applySort} isPending={isPending}
+                           emptyText="Database data penyewa kosong." />
                 <DataTablePagination meta={tenants} onPageChange={goToPage} />
             </div>
 
             <TenantFormModal open={modal.isOpen} item={modal.item} onClose={modal.close} />
 
-            {/* Dialog Hapus Tunggal */}
-            <DeleteConfirmDialog
-                open={softDelete.open}
-                onOpenChange={softDelete.setOpen}
-                description={
-                    <>
-                        Apakah Anda benar-benar yakin ingin menghapus arsip penyewa{' '}
-                        <span className="font-bold text-foreground">"{softDelete.item?.name}"</span>?
-                        Tindakan ini akan memindahkan data ke area pembuangan sementara.
-                    </>
-                }
-                onConfirm={softDelete.confirm}
-            />
+            <DeleteConfirmDialog open={softDelete.open} onOpenChange={softDelete.setOpen}
+                                 description="Buang profil penyewa ke tong sampah?" onConfirm={softDelete.confirm} />
+            <DeleteConfirmDialog open={singleRestore.open} onOpenChange={singleRestore.setOpen}
+                                 description="Pulihkan profil data penyewa ini?" onConfirm={singleRestore.confirm}
+                                 confirmLabel="Pulihkan" />
+            <DeleteConfirmDialog open={singleForceDelete.open} onOpenChange={singleForceDelete.setOpen}
+                                 description="Hapus permanen berkas penyewa beserta akun portal loginn-ya?"
+                                 onConfirm={singleForceDelete.confirm} />
 
-            {/* Dialog Hapus Massal */}
-            <BulkDeleteConfirmDialog
-                open={bulkDelete.open}
-                onOpenChange={bulkDelete.setOpen}
-                count={bulkDelete.pendingCount}
-                isDeleting={bulkDelete.isDeleting}
-                onConfirm={bulkDelete.confirm}
-                onCancel={bulkDelete.cancel}
-                entityLabel="data profil penyewa"
-            />
+            <BulkDeleteConfirmDialog open={bulkDelete.open} onOpenChange={bulkDelete.setOpen}
+                                     count={bulkDelete.pendingCount} isDeleting={bulkDelete.isDeleting}
+                                     onConfirm={bulkDelete.confirm} onCancel={bulkDelete.cancel}
+                                     entityLabel="profil penyewa" />
+            <BulkRestoreConfirmDialog open={bulkRestore.open} onOpenChange={bulkRestore.setOpen}
+                                      count={bulkRestore.pendingCount} isRestoring={bulkRestore.isRestoring}
+                                      onConfirm={bulkRestore.confirm} onCancel={bulkRestore.cancel}
+                                      entityLabel="profil penyewa" />
+            <BulkForceDeleteConfirmDialog open={bulkForceDelete.open} onOpenChange={bulkForceDelete.setOpen}
+                                          count={bulkForceDelete.pendingCount} isDeleting={bulkForceDelete.isDeleting}
+                                          onConfirm={bulkForceDelete.confirm} onCancel={bulkForceDelete.cancel}
+                                          entityLabel="profil penyewa" />
 
-            {/* Floating Bulk Actions Bar */}
-            {canDelete && (
-                <DataTableBulkBar
-                    selectedCount={selection.selectedCount}
-                    selectedIds={Array.from(selection.selectedIds)}
-                    onClear={selection.clearAll}
-                    actions={bulkBarActions}
-                />
-            )}
+            <DataTableBulkBar selectedCount={selection.selectedCount} selectedIds={Array.from(selection.selectedIds)}
+                              onClear={selection.clearAll} actions={showTrashed ? [{
+                label: 'Pulihkan Pilihan',
+                onClick: (ids) => bulkRestore.trigger(ids)
+            }, {
+                label: 'Hapus Selamanya',
+                destructive: true,
+                onClick: (ids) => bulkForceDelete.trigger(ids)
+            }] : [{ label: 'Buang ke Sampah', destructive: true, onClick: (ids) => bulkDelete.trigger(ids) }]} />
         </>
     );
 }
 
 TenantIndex.layout = {
-    breadcrumbs: [
-        { title: 'Manajemen Kos', href: '#' },
-        { title: 'Buku Penyewa', href: '/tenants' },
-    ],
+    breadcrumbs: [{ title: 'Kependudukan Kos', href: '#' }, {
+        title: 'Daftar Penyewa',
+        href: '/tenants'
+    }]
 };
